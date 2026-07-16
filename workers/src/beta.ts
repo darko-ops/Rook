@@ -115,6 +115,14 @@ async function main() {
       console.log(`admitted ${admitted.length} from the waitlist (codes emailed; dev mode logs them above)`);
       break;
     }
+    case 'add-drivers': {
+      const season = await currentSeason(now);
+      if (!season) throw new Error('no open season');
+      const { addDriversToSeason } = await import('@rook/core');
+      const added = await addDriversToSeason(season.id, now);
+      console.log(`${added} driver assets added at flat p0 (market ranks them from here)`);
+      break;
+    }
     case 'standings': {
       const season = await currentSeason(now);
       if (!season) throw new Error('no open season');
@@ -142,7 +150,7 @@ async function main() {
     }
     default:
       console.log(
-        'commands: open-season | invites | gate on|off | news rss|synthetic | auth magic|handle | grant-invites [n] | waitlist | admit-wave [n] | standings | metrics | settle',
+        'commands: open-season | invites | gate on|off | news rss|synthetic | auth magic|handle | grant-invites [n] | waitlist | admit-wave [n] | add-drivers | standings | metrics | settle',
       );
   }
   await closeDb();

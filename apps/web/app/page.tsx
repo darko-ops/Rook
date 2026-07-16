@@ -23,7 +23,7 @@ export default async function PortfolioScreen(props: {
   if (!season) return <p style={{ paddingTop: 60 }}>No open season.</p>;
   if (!user) {
     const [assets, gate, magic, params] = await Promise.all([
-      listAssets(season.id, now),
+      listAssets(season.id, now, 'team'),
       betaGateEnabled(now),
       magicLinkEnabled(now),
       props.searchParams,

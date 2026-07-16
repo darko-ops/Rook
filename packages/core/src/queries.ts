@@ -16,6 +16,8 @@ export interface AssetRow {
   ret7d: number;
   retSeason: number;
   volume24h: number;
+  kind: 'team' | 'driver';
+  teamSymbol: string | null;
   /** real championship standing, when synced (display context, §15) */
   standing: { position: number; points: number; wins: number; round: number } | null;
 }
@@ -29,15 +31,20 @@ async function priceAgo(assetId: number, now: Date, ms: number): Promise<number 
   return rows[0]?.price ?? null;
 }
 
-export async function listAssets(seasonId: number, now: Date): Promise<AssetRow[]> {
+export async function listAssets(
+  seasonId: number,
+  now: Date,
+  kind?: 'team' | 'driver',
+): Promise<AssetRow[]> {
   const sql = db();
   const assets = await sql`
-    select a.id, a.symbol, a.name, a.color, a.p0, a.m, a.supply,
+    select a.id, a.symbol, a.name, a.color, a.p0, a.m, a.supply, a.kind, a.team_symbol,
            a.p0 + a.m * a.supply as price,
            s.position, s.points, s.wins, s.round
     from assets a
     left join standings s on s.asset_id = a.id and s.season_id = a.season_id
-    where a.season_id = ${seasonId} order by price desc
+    where a.season_id = ${seasonId} ${kind ? sql`and a.kind = ${kind}` : sql``}
+    order by price desc
   `;
   const dayAgo = new Date(now.getTime() - DAY);
   const out: AssetRow[] = [];
@@ -58,6 +65,8 @@ export async function listAssets(seasonId: number, now: Date): Promise<AssetRow[
       ret7d: p7d ? a.price / p7d - 1 : 0,
       retSeason: a.price / a.p0 - 1,
       volume24h: vol,
+      kind: a.kind,
+      teamSymbol: a.team_symbol,
       standing:
         a.position != null
           ? { position: a.position, points: a.points, wins: a.wins, round: a.round }

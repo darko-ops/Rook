@@ -14,7 +14,7 @@ export default async function MarketScreen(ctx: { params: Promise<{ symbol: stri
   const season = await activeSeason();
   if (!season) return <p style={{ paddingTop: 60 }}>No open season.</p>;
   const [asset] = await db()`
-    select a.id, a.symbol, a.name, a.color, a.p0, a.m, a.supply,
+    select a.id, a.symbol, a.name, a.color, a.p0, a.m, a.supply, a.kind, a.team_symbol,
            a.p0 + a.m * a.supply as price,
            s.position, s.points, s.wins, s.round
     from assets a
@@ -66,8 +66,9 @@ export default async function MarketScreen(ctx: { params: Promise<{ symbol: stri
         </div>
         {asset.position != null && (
           <div className="badge" style={{ marginTop: 8 }}>
-            P{asset.position} in the championship · {asset.points} pts
-            {asset.wins ? ` · ${asset.wins} wins` : ''} · after round {asset.round}
+            P{asset.position} in the {asset.kind === 'driver' ? "drivers' " : ''}championship · {asset.points} pts
+            {asset.wins ? ` · ${asset.wins} wins` : ''}
+            {asset.kind === 'driver' && asset.team_symbol ? ` · drives for ${asset.team_symbol}` : ''}
           </div>
         )}
         <div className="num" style={{ fontSize: 30, fontWeight: 700, marginTop: 8 }}>
