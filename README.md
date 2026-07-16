@@ -10,8 +10,13 @@ their friends. Dark, minimal, and unmistakably not a sportsbook.
 
 ## Docs
 
-- [v1 Product Spec](docs/v1-product-spec.md) — what v1 is, the three screens,
-  core market mechanics, ship sequence, and open decisions.
+- [Full Breakdown](docs/rook-breakdown.md) — strategy, analysis, risk
+  register, phase plan (Phase 0 → launch), concrete v1 build instructions
+  (stack, data model, API, screens), and background notes for later
+  versions (order book, copy-trading, premium tier, EPL, real-money paths).
+- [v1 Product Spec](docs/v1-product-spec.md) — the tight reference: what v1
+  is, the three screens, core market mechanics, ship sequence, and open
+  decisions.
 
 ## v1 at a glance
 
