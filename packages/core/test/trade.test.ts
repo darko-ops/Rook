@@ -18,9 +18,16 @@ let userId: number;
 let assetId: number;
 
 beforeAll(async () => {
+  // isolated test database — never the dev DB (this suite truncates)
+  if (!process.env.DATABASE_URL) {
+    const { default: postgres } = await import('postgres');
+    const admin = postgres('postgres://rook:rook@localhost:5455/postgres');
+    await admin`create database rook_test`.catch(() => undefined);
+    await admin.end();
+    process.env.DATABASE_URL = 'postgres://rook:rook@localhost:5455/rook_test';
+  }
   await migrate();
   const sql = db();
-  // isolated test season namespace: wipe everything (dev DB only)
   await sql.unsafe(`
     truncate users, sessions, seasons, assets, balances, holdings, trades,
       price_points, news_events, mover_log, scores, score_windows, follows,

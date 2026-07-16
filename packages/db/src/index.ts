@@ -4,16 +4,19 @@ export { migrate } from './migrate.js';
 
 export type Sql = postgres.Sql;
 
-export const DATABASE_URL =
-  process.env.DATABASE_URL ?? 'postgres://rook:rook@localhost:5455/rook';
+/** Resolved lazily so tests can point at an isolated database before first use. */
+export function databaseUrl(): string {
+  return process.env.DATABASE_URL ?? 'postgres://rook:rook@localhost:5455/rook';
+}
 
 let shared: Sql | null = null;
 
 /** Shared connection pool. Numerics come back as JS numbers (play-money scale). */
 export function db(): Sql {
   if (!shared) {
-    shared = postgres(DATABASE_URL, {
+    shared = postgres(databaseUrl(), {
       max: 10,
+      onnotice: () => {},
       types: {
         numeric: {
           to: 1700,

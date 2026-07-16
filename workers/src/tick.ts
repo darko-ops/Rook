@@ -4,6 +4,7 @@ import {
   F1_TEAMS,
   ingestNews,
   moverTick,
+  newsSourceFor,
   scorePendingWindows,
   snapshotPrices,
   SyntheticF1Source,
@@ -18,10 +19,14 @@ export async function tick(now: Date, opts: { newsSeed?: number } = {}): Promise
   const season = await currentSeason(now);
   if (!season) return;
 
-  // 1. news ingest (synthetic source in dev; real aggregator later, same interface)
-  const source = new SyntheticF1Source(new Date(season.starts_at), F1_TEAMS, opts.newsSeed ?? 7);
-  const lastHour = new Date(now.getTime() - 3600e3);
-  await ingestNews(source, season.id, lastHour, now);
+  // 1. news ingest — source comes from versioned config ('synthetic' | 'rss');
+  //    the dogfood harness pins the synthetic source for determinism
+  const source =
+    opts.newsSeed !== undefined
+      ? new SyntheticF1Source(new Date(season.starts_at), F1_TEAMS, opts.newsSeed)
+      : await newsSourceFor({ id: season.id, starts_at: new Date(season.starts_at) }, now);
+  const lookback = new Date(now.getTime() - (opts.newsSeed !== undefined ? 1 : 6) * 3600e3);
+  await ingestNews(source, season.id, lookback, now);
 
   // 2. house mover consumes fresh classified events
   await moverTick(now);

@@ -10,3 +10,7 @@ export * from './scoring.js';
 export * from './rank.js';
 export * from './users.js';
 export * from './queries.js';
+export * from './races.js';
+export * from './classify.js';
+export * from './newsRss.js';
+export * from './metrics.js';

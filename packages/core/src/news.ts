@@ -13,7 +13,8 @@ export interface ClassifiedNews {
   source: string;
   url?: string;
   symbol: string; // asset tag
-  sign: 1 | -1;
+  /** null = display-only news; the mover only consumes signed items */
+  sign: 1 | -1 | null;
   magnitude: MagnitudeClass;
 }
 
@@ -113,6 +114,37 @@ export class SyntheticF1Source implements NewsSource {
   }
 }
 
+/**
+ * Source selection is versioned config (key 'news'):
+ *   { "mode": "rss", "feeds": [...] }  |  { "mode": "synthetic", "seed": 7 }
+ * Default: synthetic in dev. The dogfood harness overrides explicitly.
+ */
+export async function newsSourceFor(
+  season: { id: number; starts_at: Date },
+  now: Date,
+): Promise<NewsSource> {
+  const sql = db();
+  const rows = await sql`
+    select value from config where key = 'news' and effective_at <= ${now}
+    order by effective_at desc limit 1
+  `;
+  const conf = (rows[0]?.value ?? { mode: 'synthetic' }) as {
+    mode?: string;
+    feeds?: string[];
+    seed?: number;
+  };
+  if (conf.mode === 'rss') {
+    const { RssF1Source, DEFAULT_FEEDS } = await import('./newsRss.js');
+    return new RssF1Source(conf.feeds ?? DEFAULT_FEEDS);
+  }
+  const teams = await sql`select symbol, name from assets where season_id = ${season.id}`;
+  return new SyntheticF1Source(
+    new Date(season.starts_at),
+    teams.map((t) => ({ symbol: t.symbol as string, name: t.name as string })),
+    conf.seed ?? 7,
+  );
+}
+
 /** Pull from a source and append to news_events, tagged per asset. */
 export async function ingestNews(
   source: NewsSource,
@@ -129,12 +161,14 @@ export async function ingestNews(
   for (const item of items) {
     const assetId = bySymbol.get(item.symbol);
     if (!assetId) continue;
-    await sql`
+    const inserted = await sql`
       insert into news_events (ts, headline, source, url, asset_id, sign, magnitude)
       values (${item.ts}, ${item.headline}, ${item.source}, ${item.url ?? null},
               ${assetId}, ${item.sign}, ${item.magnitude})
+      on conflict (url) where url is not null do nothing
+      returning id
     `;
-    n++;
+    n += inserted.length;
   }
   return n;
 }

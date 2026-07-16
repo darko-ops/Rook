@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 
 export function Login() {
   const [handle, setHandle] = useState('');
+  const [invite, setInvite] = useState('');
+  const [needsInvite, setNeedsInvite] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const router = useRouter();
@@ -16,12 +18,14 @@ export function Login() {
     const res = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ handle }),
+      body: JSON.stringify({ handle, invite: invite || undefined }),
     });
     if (res.ok) {
       router.refresh();
     } else {
-      setError((await res.json()).error ?? 'login failed');
+      const body = await res.json();
+      if (body.code === 'invite-required') setNeedsInvite(true);
+      setError(body.error ?? 'login failed');
       setBusy(false);
     }
   };
@@ -43,6 +47,14 @@ export function Login() {
           onChange={(e) => setHandle(e.target.value)}
           autoFocus
         />
+        {needsInvite && (
+          <input
+            type="text"
+            placeholder="invite code"
+            value={invite}
+            onChange={(e) => setInvite(e.target.value)}
+          />
+        )}
         <button className="btn" disabled={busy || handle.length < 2}>
           Start the season — $10,000
         </button>
