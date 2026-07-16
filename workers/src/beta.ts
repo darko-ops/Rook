@@ -1,15 +1,19 @@
 import { closeDb, db, migrate } from '@rook/db';
 import {
+  admitWave,
   betaMetrics,
   currentSeason,
   exitGates,
   F1_TEAMS,
+  grantInvites,
   loadConfig,
   mintInvites,
   nextRace,
   openSeason,
   seedRaces,
+  sendEmail,
   settleSeason,
+  waitlistStats,
 } from '@rook/core';
 
 /**
@@ -79,6 +83,37 @@ async function main() {
       }
       break;
     }
+    case 'auth': {
+      const on = args[0] === 'magic';
+      await setConfig2('auth', { magicLink: on }, now);
+      console.log(`auth: ${on ? 'magic-link (email)' : 'handle-only (dev/beta)'}`);
+      break;
+    }
+    case 'grant-invites': {
+      const quota = Number(args[0] ?? 3);
+      const n = await grantInvites(quota);
+      console.log(`invite quota set to ≥${quota} for ${n} users`);
+      break;
+    }
+    case 'waitlist': {
+      const s = await waitlistStats();
+      console.log(`waiting: ${s.waiting} · invited: ${s.invited} · joined: ${s.joined}`);
+      break;
+    }
+    case 'admit-wave': {
+      const n = Number(args[0] ?? 25);
+      const baseUrl = process.env.PUBLIC_URL ?? 'http://localhost:3300';
+      const admitted = await admitWave(n);
+      for (const a of admitted) {
+        await sendEmail({
+          to: a.email,
+          subject: "You're in — your Rook invite",
+          text: `Your invite code: ${a.code}\n\nJoin at ${baseUrl} — pick a handle, enter the code, and you start with the same $10,000 as everyone else.\n\nRook — Own the season.`,
+        });
+      }
+      console.log(`admitted ${admitted.length} from the waitlist (codes emailed; dev mode logs them above)`);
+      break;
+    }
     case 'settle': {
       const seasonId = Number(args[0]);
       if (!seasonId) throw new Error('usage: settle <seasonId>');
@@ -87,7 +122,9 @@ async function main() {
       break;
     }
     default:
-      console.log('commands: open-season | invites | gate on|off | news rss|synthetic | metrics | settle');
+      console.log(
+        'commands: open-season | invites | gate on|off | news rss|synthetic | auth magic|handle | grant-invites [n] | waitlist | admit-wave [n] | metrics | settle',
+      );
   }
   await closeDb();
 }

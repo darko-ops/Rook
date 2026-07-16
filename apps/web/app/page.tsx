@@ -1,17 +1,42 @@
 import Link from 'next/link';
-import { listAssets, newsFeed, portfolio, track } from '@rook/core';
+import {
+  betaGateEnabled,
+  listAssets,
+  magicLinkEnabled,
+  newsFeed,
+  portfolio,
+  track,
+} from '@rook/core';
 import { Delta, fmtMoney, fmtPct, Line } from '../components/charts';
-import { Login } from '../components/Login';
+import { InvitePanel } from '../components/InvitePanel';
+import { Landing } from '../components/Landing';
 import { activeSeason, sessionUser } from '../lib/session';
 
 export const dynamic = 'force-dynamic';
 
-export default async function PortfolioScreen() {
+export default async function PortfolioScreen(props: {
+  searchParams: Promise<{ auth_error?: string }>;
+}) {
   const user = await sessionUser();
-  if (!user) return <Login />;
   const now = new Date();
   const season = await activeSeason();
   if (!season) return <p style={{ paddingTop: 60 }}>No open season.</p>;
+  if (!user) {
+    const [assets, gate, magic, params] = await Promise.all([
+      listAssets(season.id, now),
+      betaGateEnabled(now),
+      magicLinkEnabled(now),
+      props.searchParams,
+    ]);
+    return (
+      <Landing
+        assets={assets}
+        inviteRequired={gate}
+        magicLink={magic}
+        authError={params.auth_error}
+      />
+    );
+  }
 
   const [view, assets, news] = await Promise.all([
     portfolio(user.id, season.id, now),
@@ -19,7 +44,7 @@ export default async function PortfolioScreen() {
     newsFeed(season.id, now, undefined, 8),
     track('open:portfolio', user.id),
   ]).then(([v, a, n]) => [v, a, n] as const);
-  if (!view) return <Login />;
+  if (!view) return <p style={{ paddingTop: 60 }}>No season balance — refresh after joining.</p>;
 
   const movers = [...assets].sort((a, b) => Math.abs(b.ret24h) - Math.abs(a.ret24h)).slice(0, 3);
   const headlineFor = (assetSymbol: string) =>
@@ -112,6 +137,8 @@ export default async function PortfolioScreen() {
           </div>
         </>
       )}
+
+      <InvitePanel />
     </>
   );
 }

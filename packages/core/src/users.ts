@@ -3,11 +3,42 @@ import { db } from '@rook/db';
 
 const HANDLE_RE = /^[a-z0-9_]{2,20}$/;
 
+// §21: profanity/impersonation checks on handles. Conservative and dumb on
+// purpose — a blocked legitimate handle costs an apology; a granted
+// "official_f1" costs trust.
+const RESERVED = new Set([
+  'rook', 'rookhq', 'admin', 'administrator', 'official', 'system', 'house',
+  'support', 'help', 'mod', 'moderator', 'staff', 'team', 'api', 'root',
+  'f1', 'formula1', 'fia', 'grandmaster',
+]);
+const IMPERSONATION = [
+  'redbull', 'ferrari', 'mercedes', 'mclaren', 'astonmartin', 'alpine',
+  'williams', 'racingbulls', 'audi', 'sauber', 'haas',
+  'verstappen', 'leclerc', 'hamilton', 'russell', 'antonelli', 'norris',
+  'piastri', 'alonso', 'gasly', 'albon', 'sainz', 'hulkenberg', 'ocon',
+];
+const PROFANITY = ['fuck', 'shit', 'cunt', 'nigg', 'fagg', 'rape', 'nazi'];
+
+export function validateHandle(handle: string): string | null {
+  if (!HANDLE_RE.test(handle)) return 'handle must be 2–20 chars: a–z, 0–9, _';
+  const bare = handle.replace(/_/g, '');
+  if (RESERVED.has(handle) || RESERVED.has(bare)) return 'that handle is reserved';
+  if (IMPERSONATION.some((n) => bare === n || bare === `${n}official` || bare === `official${n}`)) {
+    return 'that handle is reserved for the team/driver it names';
+  }
+  if (PROFANITY.some((p) => bare.includes(p))) return 'pick a different handle';
+  return null;
+}
+
 export class InviteRequired extends Error {
   readonly code = 'invite-required';
 }
 
 /** Beta gate (config key 'beta': { "inviteRequired": true }). Default open. */
+export async function betaGateEnabled(now: Date): Promise<boolean> {
+  return inviteRequired(now);
+}
+
 async function inviteRequired(now: Date): Promise<boolean> {
   const rows = await db()`
     select value from config where key = 'beta' and effective_at <= ${now}
@@ -40,11 +71,14 @@ export async function login(
   inviteCode?: string,
 ): Promise<{ userId: number; handle: string; token: string }> {
   const handle = handleRaw.toLowerCase().trim();
-  if (!HANDLE_RE.test(handle)) {
-    throw new Error('handle must be 2–20 chars: a–z, 0–9, _');
-  }
   const sql = db();
   const [existing] = await sql`select id from users where handle = ${handle}`;
+  if (!existing) {
+    const problem = validateHandle(handle);
+    if (problem) throw new Error(problem);
+  } else if (!HANDLE_RE.test(handle)) {
+    throw new Error('handle must be 2–20 chars: a–z, 0–9, _');
+  }
   if (!existing && (await inviteRequired(now))) {
     const [invite] = inviteCode
       ? await sql`select code from invites where code = ${inviteCode} and used_by is null`

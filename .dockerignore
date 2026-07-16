@@ -1,0 +1,7 @@
+node_modules
+**/node_modules
+apps/web/.next
+sim/out
+.git
+*.log
+.DS_Store

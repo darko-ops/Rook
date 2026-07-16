@@ -4,8 +4,21 @@ import { Tabs } from '../components/Tabs';
 
 export const metadata: Metadata = {
   title: 'Rook — Own the season',
-  description: 'Build a portfolio of the teams you believe in.',
+  description:
+    'The fantasy stock market for Formula 1. Build a portfolio of the teams you believe in — equal stacks, fan-set prices, a reputation worth defending.',
   manifest: '/manifest.json',
+  openGraph: {
+    title: 'Rook — Own the season',
+    description:
+      'The fantasy stock market for Formula 1. Equal stacks, fan-set prices, a reputation worth defending. Not a sportsbook.',
+    siteName: 'Rook',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary',
+    title: 'Rook — Own the season',
+    description: 'The fantasy stock market for Formula 1. Not a sportsbook.',
+  },
 };
 
 export const viewport: Viewport = {

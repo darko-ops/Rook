@@ -1,0 +1,49 @@
+# Production-shaped stack: web + workers + Postgres. Any boring host works;
+# this is also the reference for Fly/Railway service definitions.
+#   docker compose -f compose.prod.yml up -d --build
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: rook
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: rook
+    volumes:
+      - rook-pgdata-prod:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U rook']
+      interval: 5s
+      retries: 30
+
+  migrate:
+    build: { context: ., target: workers }
+    command: ['npx', 'tsx', 'packages/db/src/migrate.ts']
+    environment:
+      DATABASE_URL: postgres://rook:${POSTGRES_PASSWORD}@db:5432/rook
+    depends_on:
+      db: { condition: service_healthy }
+
+  web:
+    build: { context: ., target: web }
+    ports: ['3300:3300']
+    environment:
+      DATABASE_URL: postgres://rook:${POSTGRES_PASSWORD}@db:5432/rook
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-Rook <hello@rook.ai>}
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    restart: unless-stopped
+
+  workers:
+    build: { context: ., target: workers }
+    environment:
+      DATABASE_URL: postgres://rook:${POSTGRES_PASSWORD}@db:5432/rook
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-Rook <hello@rook.ai>}
+      PUBLIC_URL: ${PUBLIC_URL:-https://rook.ai}
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    restart: unless-stopped
+
+volumes:
+  rook-pgdata-prod:
