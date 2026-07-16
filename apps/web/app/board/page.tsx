@@ -33,7 +33,7 @@ export default async function LeaderboardScreen() {
               <span className="num faint" style={{ width: 24, fontSize: 13 }}>{i + 1}</span>
               <span>
                 <div style={{ fontWeight: 600, fontSize: 14.5 }}>
-                  @{r.handle}
+                  {r.flair ? `${r.flair} ` : ''}@{r.handle}
                   {user?.handle === r.handle && <span className="faint"> · you</span>}
                 </div>
                 <div className="faint" style={{ fontSize: 12 }}>

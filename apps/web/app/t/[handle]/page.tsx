@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { traderProfile } from '@rook/core';
 import { fmtMoney, fmtPct } from '../../../components/charts';
+import { FlairPicker } from '../../../components/FlairPicker';
 import { FollowButton } from '../../../components/FollowButton';
 import { activeSeason, sessionUser } from '../../../lib/session';
 
@@ -20,7 +21,7 @@ export default async function TraderScreen(ctx: { params: Promise<{ handle: stri
       <header style={{ padding: '22px 0 4px' }}>
         <Link href="/board" className="faint" style={{ fontSize: 13 }}>← Leaderboard</Link>
         <div className="row" style={{ marginTop: 10 }}>
-          <h1>@{p.handle}</h1>
+          <h1>{p.flair ? `${p.flair} ` : ''}@{p.handle}</h1>
           <FollowButton handle={p.handle} isFollowing={p.isFollowing} self={viewer?.handle === p.handle} />
         </div>
         <div className="row" style={{ justifyContent: 'flex-start', gap: 10, marginTop: 8 }}>
@@ -37,6 +38,7 @@ export default async function TraderScreen(ctx: { params: Promise<{ handle: stri
           <span className={`num ${p.seasonReturn >= 0 ? 'up' : 'down'}`}>{fmtPct(p.seasonReturn)}</span> season
           · {p.followers} followers · {p.following} following
         </div>
+        {viewer?.handle === p.handle && <FlairPicker current={p.flair} plan={viewer.plan} />}
       </header>
 
       <h2>Holdings</h2>

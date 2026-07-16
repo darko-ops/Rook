@@ -18,3 +18,6 @@ export * from './classify.js';
 export * from './newsRss.js';
 export * from './metrics.js';
 export * from './standings.js';
+export * from './plan.js';
+export * from './book.js';
+export * from './push.js';

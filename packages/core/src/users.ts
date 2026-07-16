@@ -100,10 +100,13 @@ export async function login(
   return { userId: user!.id as number, handle: user!.handle as string, token };
 }
 
-export async function userForToken(token: string, now: Date): Promise<{ id: number; handle: string } | null> {
+export async function userForToken(
+  token: string,
+  now: Date,
+): Promise<{ id: number; handle: string; plan: 'free' | 'pro'; flair: string | null } | null> {
   if (!token) return null;
   const rows = await db()`
-    select u.id, u.handle from sessions s join users u on u.id = s.user_id
+    select u.id, u.handle, u.plan, u.flair from sessions s join users u on u.id = s.user_id
     where s.token = ${token} and s.expires_at > ${now}
   `;
   return (rows[0] as never) ?? null;

@@ -267,6 +267,7 @@ export async function portfolio(userId: number, seasonId: number, now: Date): Pr
 
 export interface LeaderboardRow {
   handle: string;
+  flair: string | null;
   rookScore: number;
   rank: Rank;
   provisional: boolean;
@@ -278,7 +279,7 @@ export async function leaderboard(seasonId: number, now: Date, limit = 50): Prom
   const sql = db();
   const cfg = await loadConfig(now);
   const rows = await sql`
-    select u.handle, s.rook_score, s.windows_played, s.user_id, b.cash,
+    select u.handle, u.flair, s.rook_score, s.windows_played, s.user_id, b.cash,
            (select count(*) from follows f where f.followee_id = u.id) as followers,
            coalesce((select sum(h.qty * (a.p0 + a.m * a.supply))
                      from holdings h join assets a on a.id = h.asset_id
@@ -293,6 +294,7 @@ export async function leaderboard(seasonId: number, now: Date, limit = 50): Prom
   const n = rows.length;
   return rows.map((r, i) => ({
     handle: r.handle,
+    flair: r.flair,
     rookScore: r.rook_score,
     rank: rankFor(n > 1 ? 1 - i / (n - 1) : 1),
     provisional: isProvisional(r.windows_played, cfg.score.provisionalWindows),
@@ -303,6 +305,7 @@ export async function leaderboard(seasonId: number, now: Date, limit = 50): Prom
 
 export interface TraderProfile {
   handle: string;
+  flair: string | null;
   createdAt: Date;
   rookScore: number | null;
   rank: Rank | null;
@@ -324,7 +327,7 @@ export async function traderProfile(
 ): Promise<TraderProfile | null> {
   const sql = db();
   const cfg = await loadConfig(now);
-  const [u] = await sql`select id, handle, created_at from users where handle = ${handle}`;
+  const [u] = await sql`select id, handle, flair, created_at from users where handle = ${handle}`;
   if (!u) return null;
   const [scoreRow] = await sql`
     select rook_score, windows_played from scores where user_id = ${u.id} and season_id = ${seasonId}
@@ -367,6 +370,7 @@ export async function traderProfile(
   `;
   return {
     handle: u.handle,
+    flair: u.flair,
     createdAt: new Date(u.created_at),
     rookScore: scoreRow?.rook_score ?? null,
     rank,

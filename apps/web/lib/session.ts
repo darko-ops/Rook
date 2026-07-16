@@ -3,7 +3,12 @@ import { currentSeason, userForToken } from '@rook/core';
 
 export const SESSION_COOKIE = 'rook_session';
 
-export async function sessionUser(): Promise<{ id: number; handle: string } | null> {
+export async function sessionUser(): Promise<{
+  id: number;
+  handle: string;
+  plan: 'free' | 'pro';
+  flair: string | null;
+} | null> {
   const jar = await cookies();
   const token = jar.get(SESSION_COOKIE)?.value ?? '';
   if (!token) return null;

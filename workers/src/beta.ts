@@ -115,6 +115,14 @@ async function main() {
       console.log(`admitted ${admitted.length} from the waitlist (codes emailed; dev mode logs them above)`);
       break;
     }
+    case 'plan': {
+      const [handle, plan] = args;
+      if (!handle || (plan !== 'free' && plan !== 'pro')) throw new Error('usage: plan <handle> free|pro');
+      const { setPlan } = await import('@rook/core');
+      await setPlan(handle, plan);
+      console.log(`@${handle} → ${plan}`);
+      break;
+    }
     case 'add-drivers': {
       const season = await currentSeason(now);
       if (!season) throw new Error('no open season');
@@ -150,7 +158,7 @@ async function main() {
     }
     default:
       console.log(
-        'commands: open-season | invites | gate on|off | news rss|synthetic | auth magic|handle | grant-invites [n] | waitlist | admit-wave [n] | add-drivers | standings | metrics | settle',
+        'commands: open-season | invites | gate on|off | news rss|synthetic | auth magic|handle | grant-invites [n] | waitlist | admit-wave [n] | add-drivers | standings | plan <handle> free|pro | metrics | settle',
       );
   }
   await closeDb();

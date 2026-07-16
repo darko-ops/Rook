@@ -5,6 +5,7 @@ import {
   ingestNews,
   moverTick,
   newsSourceFor,
+  pushTick,
   scorePendingWindows,
   snapshotPrices,
   syncStandings,
@@ -43,6 +44,11 @@ export async function tick(now: Date, opts: { newsSeed?: number } = {}): Promise
 
   // 4. fold any completed weekly windows into Rook Scores
   await scorePendingWindows(season.id, now);
+
+  // 5. "your portfolio moved" pushes (cooldown-gated; skipped in dogfood)
+  if (opts.newsSeed === undefined) {
+    await pushTick(season.id, now);
+  }
 }
 
 const isMain = process.argv[1]?.endsWith('tick.ts');

@@ -124,6 +124,20 @@ export default async function MarketScreen(ctx: { params: Promise<{ symbol: stri
         </div>
       )}
 
+      {user?.plan === 'pro' ? (
+        <p style={{ marginTop: 10 }}>
+          <a href={`/api/assets/${asset.id}/export`} className="faint" style={{ fontSize: 12.5, textDecoration: 'underline' }}>
+            Export full price history (CSV) — Opening Book
+          </a>
+        </p>
+      ) : (
+        <p style={{ marginTop: 10 }}>
+          <Link href="/book" className="faint" style={{ fontSize: 12.5, textDecoration: 'underline' }}>
+            Full-season history, flow analytics &amp; export in the Opening Book →
+          </Link>
+        </p>
+      )}
+
       <h2>Why it moved</h2>
       <div className="panel" style={{ padding: '4px 16px' }}>
         {news.length === 0 && <div className="faint" style={{ padding: '12px 0', fontSize: 13.5 }}>No news yet.</div>}

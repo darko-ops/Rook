@@ -10,6 +10,7 @@ import {
 import { Delta, fmtMoney, fmtPct, Line } from '../components/charts';
 import { InvitePanel } from '../components/InvitePanel';
 import { Landing } from '../components/Landing';
+import { PushToggle } from '../components/PushToggle';
 import { activeSeason, sessionUser } from '../lib/session';
 
 export const dynamic = 'force-dynamic';
@@ -55,10 +56,13 @@ export default async function PortfolioScreen(props: {
     <>
       <header className="row" style={{ padding: '22px 0 4px' }}>
         <span className="brand">R<span>OO</span>K</span>
-        <Link href={`/t/${user.handle}`} className="badge">
-          {view.rank ?? 'Rookie'}{view.provisional ? ' ·  provisional' : ''}
-          {view.rookScore !== null ? ` · ${Math.round(view.rookScore)}` : ''}
-        </Link>
+        <span className="row" style={{ gap: 10 }}>
+          <PushToggle />
+          <Link href={`/t/${user.handle}`} className="badge">
+            {view.rank ?? 'Rookie'}{view.provisional ? ' ·  provisional' : ''}
+            {view.rookScore !== null ? ` · ${Math.round(view.rookScore)}` : ''}
+          </Link>
+        </span>
       </header>
 
       <section style={{ padding: '18px 0 6px' }}>

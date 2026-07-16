@@ -12,6 +12,8 @@
   },
   "dependencies": {
     "@rook/db": "*",
-    "@rook/engine": "*"
+    "@rook/engine": "*",
+    "@types/web-push": "^3.6.4",
+    "web-push": "^3.6.7"
   }
 }
