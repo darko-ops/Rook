@@ -15,6 +15,8 @@ their friends. Dark, minimal, and unmistakably not a sportsbook.
 
 ## v1 at a glance
 
+- **Brand:** Rook is the investor, not the exchange — everyone's a portfolio
+  manager. Website: **rook.ai** · App: **Rook** · Ranks: Rookie → Grandmaster
 - **One league:** F1 (~10 constructor assets, season-scoped)
 - **Three screens:** Portfolio (home) · Market (a team) · Leaderboard + profiles
 - **Market mechanics:** pure-sentiment AMM + capped, decaying house baseline mover

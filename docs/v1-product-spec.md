@@ -56,7 +56,81 @@ that doesn't waits.
 
 ---
 
-## 3. Launch scope
+## 3. Brand & identity
+
+### Rook is the investor, not the exchange
+
+Robinhood made everyone feel like an investor. **Rook makes everyone feel
+like a portfolio manager.** The brand is the identity users inhabit, not the
+venue they visit — Rook reads as an investment platform, not a stock
+exchange, and that's better.
+
+Homepage framing:
+
+> **Rook** — *Own the season.*
+>
+> Build a portfolio of the teams you believe in.
+
+### Domain & naming structure
+
+| Surface | Name |
+|---------|------|
+| Brand | Rook |
+| Website | **rook.ai** |
+| App | Rook |
+| Social handle | Aligned everywhere (e.g. @rookhq) |
+
+- **Buy rook.ai now** — inexpensive, and for a product whose core surface is
+  AI-adjacent analytics (measurement layer, rankings, market insights),
+  `.ai` reinforces the story rather than apologizing for the missing `.com`.
+  Nobody says "I'm using rook.ai" — they say "I'm on Rook."
+- **Skip `.net` and `.co` entirely.** Don't chase `rook.com` at this stage;
+  if the business proves itself, that's a decision for later, from a
+  stronger position.
+
+### Chess vocabulary — status and identity, never actions
+
+The chess register is rich without being gimmicky, as long as it stays on
+the identity side of the line:
+
+| Term | Meaning |
+|------|---------|
+| Rookie | New user |
+| Rook Score / Rook Rating | Elo-style reputation |
+| Rook Index | Market-wide index |
+| Grandmaster | Highest rank |
+| Opening Book | Market research / analytics surface |
+| Endgame | Season finale |
+
+**The guardrail stands:** Buy/Sell remain plain finance verbs. Chess
+vocabulary lives in ranks, research, and season framing — the moment it
+touches a trading action, cut it.
+
+### Visual direction
+
+Very dark UI. Minimal. No sportsbook aesthetic, no casino green. Reference
+points: Apple Stocks, Robinhood, Linear, Formula 1.
+
+```
+ROOK
+
+Portfolio
++$2,483 (+18.7%)
+
+Holdings
+
+Ferrari        ▲ 5.8%
+McLaren        ▲ 3.1%
+Red Bull       ▼ 1.4%
+Mercedes       ▲ 8.2%
+```
+
+*(The long-term vision is multi-vertical — clubs, national teams, college
+programs — but v1 holdings are F1 constructors only, per §4.)*
+
+---
+
+## 4. Launch scope
 
 ### One league: Formula 1
 
@@ -81,7 +155,7 @@ that doesn't waits.
 
 ---
 
-## 4. Core market mechanics
+## 5. Core market mechanics
 
 ### 4.1 AMM (bonding curve) — baseline liquidity
 
@@ -129,17 +203,17 @@ decay schedule. Tune conservatively.
 
 ---
 
-## 5. The three screens that are actually v1
+## 6. The three screens that are actually v1
 
 Everything else is scope you can cut. These three are the product.
 
-### 5.1 Portfolio (home) — the daily-open screen
+### 6.1 Portfolio (home) — the daily-open screen
 
 - Your holdings, your movers, your return, your Rook Score.
 - Dark Stocks/Linear aesthetic. Has to feel like opening a trading app.
 - This screen answers "what does my season look like" at a glance.
 
-### 5.2 Market (a team) — the Bloomberg surface
+### 6.2 Market (a team) — the Bloomberg surface
 
 - **Price**, plus the measurement layer around it: momentum, volume,
   ownership distribution, whale activity, 7-day and season return,
@@ -149,7 +223,7 @@ Everything else is scope you can cut. These three are the product.
 - **Buy/Sell are plain buttons.** Plain finance verbs; chess vocabulary
   lives in status, not actions.
 
-### 5.3 Leaderboard + trader profiles — reputation from day one
+### 6.3 Leaderboard + trader profiles — reputation from day one
 
 - Rankings, and tappable profiles showing holdings, returns, followers.
 - Even at 300 users, "Top F1 Investor This Month" is a reason to come back.
@@ -160,7 +234,7 @@ Everything else is scope you can cut. These three are the product.
 
 ---
 
-## 6. Monetization (without distorting the market)
+## 7. Monetization (without distorting the market)
 
 Charge for **seeing more** and **being more** — never for having more buying
 power:
@@ -179,7 +253,7 @@ legitimate).
 
 ---
 
-## 7. What v1 deliberately is NOT
+## 8. What v1 deliberately is NOT
 
 - ❌ No cash-out
 - ❌ No redeemable second currency
@@ -197,7 +271,7 @@ being the news.
 
 ---
 
-## 8. Ship sequence
+## 9. Ship sequence
 
 1. **Prototype the AMM + house-mover math first.** It's the riskiest piece
    and everything sits on it.
@@ -216,7 +290,7 @@ difference between a clever demo and something people open on a Tuesday.
 
 ---
 
-## 9. Open decisions (with recommended defaults)
+## 10. Open decisions (with recommended defaults)
 
 | # | Decision | Recommended default | Settle by |
 |---|----------|--------------------|-----------|
@@ -226,11 +300,11 @@ difference between a clever demo and something people open on a Tuesday.
 | D | Rook Score formula | Reward early-and-right + risk-adjusted return, not raw return | Closed beta |
 | E | Copy-trading | Out of v1; follow + public profiles in | Decided for v1 |
 | F | Monetization mix | Subscription (analytics) + cosmetics; no trading fees in v1 | Post-beta |
-| G | Handle/domain | Buy rook.ai; align handle (e.g. @rookhq) everywhere; verify rook.com is parked before brand spend | Pre-launch |
+| G | Handle/domain | **Decided:** buy rook.ai; skip .net/.co; don't chase .com yet; align handle (e.g. @rookhq) everywhere — see §3 | Decided for v1 |
 
 ---
 
-## 10. Regulatory posture (v1)
+## 11. Regulatory posture (v1)
 
 v1 has effectively **zero regulatory exposure** because there is no
 cash-out — legally a video-game economy, not gambling. The real-money
@@ -241,7 +315,7 @@ financial decision. This spec is strategic analysis, not legal advice.
 
 ---
 
-## 11. North star
+## 12. North star
 
 **Hold for years, watch it profit, build a reputation.** Stability, not
 churn. The job isn't to predict sports — it's to build the fairest, most
