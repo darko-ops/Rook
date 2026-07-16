@@ -1,0 +1,22 @@
+{
+  "name": "web",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3300",
+    "build": "next build",
+    "start": "next start -p 3300"
+  },
+  "dependencies": {
+    "@rook/core": "*",
+    "@rook/db": "*",
+    "@rook/engine": "*",
+    "next": "^15.1.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0"
+  }
+}

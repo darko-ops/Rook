@@ -166,3 +166,32 @@ Written to `sim/out/v1-config.json`; mirrors `defaultConfig` in
 **Next (Phase 1, §17):** the three screens against F1 powered by this
 engine package — `packages/db` schema per §21, trade path per §22, workers
 for news/mover/snapshots/scores, exit on an end-to-end fake half-season.
+
+## Amendments from the Phase 1 dogfood
+
+The §17 dogfood (70 simulated days through the real services and database,
+40 agents) caught four things the Phase 0 harness had let slide. All are
+folded into `defaultConfig` and re-validated against the §16 exit criteria
+(3/3 seeds on the Rook Score ordering, tighter than before):
+
+1. **`volFloor` 0.005 → 0.02.** A 0.5%-weekly floor let mostly-cash
+   portfolios divide small excess returns by almost nothing, amplifying
+   noise ×200 — honest losers scored below the wash penalty, so the wash
+   trader floated mid-field. 2% weekly is a realistic floor.
+2. **Wash forfeit rule.** A window whose credited volume is majority wash
+   (`washForfeitThreshold` 0.5) is forfeited outright — bottom of the
+   field — rather than just penalized. Wash archetype now lands ~1000 in
+   sim and ~1077 in dogfood, unambiguously last.
+3. **The quiet floor no longer stacks on the relative cap.** Old rule:
+   allowed house impact = max(floor, C/(1−C)·organic) — on thin-but-active
+   days the floor dominated and measured house share hit 45%. New rule: any
+   real organic flow → strict relative cap alone; the floor applies only to
+   dead markets (organic ≈ 0), which is its whole purpose. Dogfood house
+   share on trader-active asset-days: p95 = 20.0% at cap 20%.
+4. **`quietImpactFloor` 0.015 → 0.008** — conservative direction per §13.2
+   ("under-moving is recoverable; over-moving breaks the constitution").
+
+Net config drift: curve band moved to **m ∈ [0.003, 0.01]** (defaults stay
+m = 0.003 at the flatter edge); mover defaults are C = 0.2, V* = 10,000,
+scale-1 nudges, floor 0.008. The `defaultConfig` in
+`packages/engine/src/config.ts` is the single source of truth.

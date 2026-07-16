@@ -88,16 +88,19 @@ export class HouseMover {
     const budget = mover.maxNotionalPerAssetPerWindow - houseNotional;
     if (budget <= 0) return none('budget-exhausted');
 
-    // Cap check: house impact this window must stay under capC of the total
-    // move when there is organic flow; otherwise under the quiet floor.
+    // Cap check: with any real organic flow in the window, the strict
+    // relative cap binds alone — house share of the move stays ≤ capC.
+    // The quiet floor exists only for dead markets (organic ≈ 0), where
+    // "share of the move" is meaningless and overnight liveliness is the
+    // mover's whole purpose.
     const price = spotPrice(this.cfg, asset.supply);
     const organicImpact = f.organic.reduce((s, r) => s + r.impact, 0);
     const houseImpact = f.house.reduce((s, r) => s + r.impact, 0);
     const c = mover.capC;
-    const allowedImpact = Math.max(
-      mover.quietImpactFloor * price,
-      (c / (1 - c)) * organicImpact,
-    );
+    const floorTerm = mover.quietImpactFloor * price;
+    const relativeTerm = (c / (1 - c)) * organicImpact;
+    const marketIsDead = organicImpact < floorTerm * 0.5;
+    const allowedImpact = marketIsDead ? Math.max(floorTerm, relativeTerm) : relativeTerm;
     const impactHeadroom = allowedImpact - houseImpact;
     if (impactHeadroom <= 0) return none('cap-limited');
 

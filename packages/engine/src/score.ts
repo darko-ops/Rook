@@ -176,8 +176,13 @@ export function computeWindowPerf(
   if (dfs > s.dominantFlowThreshold && signal > 0) {
     signal *= Math.max(0, 1 - (dfs - s.dominantFlowThreshold) / (1 - s.dominantFlowThreshold));
   }
-  // Wash volume is not merely uncredited — it costs reputation.
+  // Wash volume is not merely uncredited — it costs reputation, and a
+  // window that was mostly wash is forfeited outright (bottom of the field,
+  // regardless of how the rest of the book did).
   signal -= washFraction * s.washPenaltyWeight;
+  if (washFraction > s.washForfeitThreshold) {
+    signal = -100 * washFraction;
+  }
   return { userId: user.userId, ret, excess, vol, riskAdjusted, earliness, washFraction, volumeWeight, hhi, signal };
 }
 

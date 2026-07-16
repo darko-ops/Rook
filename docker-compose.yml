@@ -1,0 +1,20 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: rook-db
+    environment:
+      POSTGRES_USER: rook
+      POSTGRES_PASSWORD: rook
+      POSTGRES_DB: rook
+    ports:
+      - '5455:5432'
+    volumes:
+      - rook-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U rook']
+      interval: 2s
+      timeout: 2s
+      retries: 30
+
+volumes:
+  rook-pgdata:

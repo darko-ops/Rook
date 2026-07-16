@@ -12,6 +12,7 @@ export interface EngineConfig {
   trading: {
     maxTradeNotional: number; // per-trade size cap (anti-whipsaw), play-$
     startingStack: number; // equal stack per user per season
+    maxTradesPerAssetPerDay: number; // per-user rate limit (anti-spam/wash)
   };
   mover: {
     // Nudge notional per event magnitude class, before δ scaling.
@@ -41,6 +42,7 @@ export interface EngineConfig {
     washWindow: number; // ticks within which offsetting round-trips are wash
     washNetPositionTolerance: number; // |net qty| / gross qty below this = wash
     washPenaltyWeight: number; // detected wash volume actively costs rating
+    washForfeitThreshold: number; // wash fraction above which the window is forfeited
     minVolumeForFullWeight: number; // window notional below this scales signal down
     // Anti-pump: if a user's own flow is more than this share of their top
     // asset's window volume, positive performance on it is discounted —
@@ -49,16 +51,18 @@ export interface EngineConfig {
   };
 }
 
+// Defaults are the Phase-0-validated v1 values (docs/phase0-results.md);
+// production overrides live in the versioned `config` table.
 export const defaultConfig: EngineConfig = {
-  curve: { p0: 10, m: 0.002 },
-  trading: { maxTradeNotional: 1000, startingStack: 10_000 },
+  curve: { p0: 10, m: 0.003 },
+  trading: { maxTradeNotional: 1000, startingStack: 10_000, maxTradesPerAssetPerDay: 30 },
   mover: {
     nudgeNotional: { small: 150, medium: 400, large: 900 },
-    capC: 0.3,
-    vStar: 5000,
+    capC: 0.2,
+    vStar: 10000,
     maxTradesPerAssetPerWindow: 6,
     maxNotionalPerAssetPerWindow: 1800,
-    quietImpactFloor: 0.015,
+    quietImpactFloor: 0.008,
     windowTicks: 24,
   },
   score: {
@@ -67,7 +71,7 @@ export const defaultConfig: EngineConfig = {
     provisionalWindows: 3,
     provisionalKMultiplier: 2,
     initialRating: 1200,
-    volFloor: 0.005,
+    volFloor: 0.02, // realistic weekly floor; lower values amplify cash-heavy noise
     earlinessHorizon: 48,
     earlinessLookback: 24,
     concentrationHhiThreshold: 0.5,
@@ -76,6 +80,7 @@ export const defaultConfig: EngineConfig = {
     washWindow: 48,
     washNetPositionTolerance: 0.2,
     washPenaltyWeight: 2,
+    washForfeitThreshold: 0.5,
     minVolumeForFullWeight: 500,
     dominantFlowThreshold: 0.25,
   },

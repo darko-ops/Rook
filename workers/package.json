@@ -1,0 +1,16 @@
+{
+  "name": "workers",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "tick": "tsx src/tick.ts",
+    "run": "tsx src/daemon.ts",
+    "dogfood": "tsx src/dogfood.ts"
+  },
+  "dependencies": {
+    "@rook/core": "*",
+    "@rook/db": "*",
+    "@rook/engine": "*"
+  }
+}

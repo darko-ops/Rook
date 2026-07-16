@@ -24,15 +24,28 @@ their friends. Dark, minimal, and unmistakably not a sportsbook.
 
 ```
 packages/engine/   # AMM math, house mover, Rook Score — pure, deterministic, tested
+packages/db/       # Postgres schema, migrations, connection (§21)
+packages/core/     # services: trade path, news, mover tick, scoring, queries
+apps/web/          # Next.js PWA: the three screens + §22 API (port 3300)
+workers/           # worker cycle (news → mover → snapshots → scores) + dogfood
 sim/               # Phase 0 simulation harness (agents, news stream, sweeps)
 docs/
 ```
 
 ```sh
 npm install
-npm test           # engine unit tests
-npm run sim        # Phase 0 sweeps → sim/out/report.txt + sim/out/v1-config.json
+docker compose up -d              # Postgres 16 on :5455
+npm run -w @rook/db migrate       # apply schema
+npm test                          # engine unit + core integration tests
+npm run sim                       # Phase 0 sweeps → sim/out/
+npm run -w workers dogfood        # §17 exit test: fake half-season, end to end
+npm run -w web dev                # app on http://localhost:3300
+npm run -w workers run            # worker daemon (5m ticks) alongside the app
 ```
+
+The dogfood run leaves the database populated mid-season, so the app is
+immediately browsable: sign in with any handle, you join with the standard
+$10,000 stack.
 
 ## v1 at a glance
 
