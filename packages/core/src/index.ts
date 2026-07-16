@@ -17,3 +17,4 @@ export * from './email.js';
 export * from './classify.js';
 export * from './newsRss.js';
 export * from './metrics.js';
+export * from './standings.js';

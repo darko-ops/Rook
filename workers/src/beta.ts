@@ -13,6 +13,7 @@ import {
   seedRaces,
   sendEmail,
   settleSeason,
+  syncStandings,
   waitlistStats,
 } from '@rook/core';
 
@@ -114,6 +115,24 @@ async function main() {
       console.log(`admitted ${admitted.length} from the waitlist (codes emailed; dev mode logs them above)`);
       break;
     }
+    case 'standings': {
+      const season = await currentSeason(now);
+      if (!season) throw new Error('no open season');
+      const res = await syncStandings(season.id, now);
+      console.log(`sync: ${res.synced ? 'fetched' : 'throttled/cached'} · ${res.events} result events emitted`);
+      const table = await db()`
+        select s.position, a.name, s.points, s.wins, a.p0 + a.m * a.supply as price
+        from standings s join assets a on a.id = s.asset_id
+        where s.season_id = ${season.id} order by s.position
+      `;
+      console.log('pos  team              pts    wins  market price');
+      for (const r of table) {
+        console.log(
+          `P${String(r.position).padEnd(3)} ${String(r.name).padEnd(17)} ${String(r.points).padEnd(6)} ${String(r.wins).padEnd(5)} $${Number(r.price).toFixed(2)}`,
+        );
+      }
+      break;
+    }
     case 'settle': {
       const seasonId = Number(args[0]);
       if (!seasonId) throw new Error('usage: settle <seasonId>');
@@ -123,7 +142,7 @@ async function main() {
     }
     default:
       console.log(
-        'commands: open-season | invites | gate on|off | news rss|synthetic | auth magic|handle | grant-invites [n] | waitlist | admit-wave [n] | metrics | settle',
+        'commands: open-season | invites | gate on|off | news rss|synthetic | auth magic|handle | grant-invites [n] | waitlist | admit-wave [n] | standings | metrics | settle',
       );
   }
   await closeDb();

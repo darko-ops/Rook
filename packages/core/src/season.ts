@@ -19,6 +19,7 @@ export const F1_TEAMS: TeamSpec[] = [
   { symbol: 'VRB', name: 'Racing Bulls', color: '#6692FF' },
   { symbol: 'AUD', name: 'Audi', color: '#BBBBBB' },
   { symbol: 'HAA', name: 'Haas', color: '#B6BABD' },
+  { symbol: 'CAD', name: 'Cadillac', color: '#B8860B' },
 ];
 
 export async function openSeason(

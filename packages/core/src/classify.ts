@@ -24,6 +24,7 @@ export const TEAM_ALIASES: Record<string, string[]> = {
   VRB: ['racing bulls', 'hadjar', 'lawson'],
   AUD: ['audi', 'sauber', 'hulkenberg', 'bortoleto'],
   HAA: ['haas', 'ocon', 'bearman'],
+  CAD: ['cadillac', 'perez', 'bottas'],
 };
 
 const POSITIVE = [

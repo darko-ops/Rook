@@ -14,7 +14,10 @@ export default async function MarketList() {
     <>
       <header style={{ padding: '22px 0 4px' }}>
         <h1>Market</h1>
-        <div className="faint" style={{ fontSize: 13 }}>{season.name} · Formula 1</div>
+        <div className="faint" style={{ fontSize: 13 }}>
+          {season.name} · Formula 1
+          {assets[0]?.standing ? ` · championship after round ${assets[0].standing.round}` : ''}
+        </div>
       </header>
       <div className="panel" style={{ padding: '4px 16px', marginTop: 14 }}>
         {assets.map((a, i) => (
@@ -23,7 +26,11 @@ export default async function MarketList() {
               <span className="dot" style={{ background: a.color }} />
               <span>
                 <div style={{ fontWeight: 600, fontSize: 15 }}>{a.name}</div>
-                <div className="faint num" style={{ fontSize: 12.5 }}>{a.symbol}</div>
+                <div className="faint num" style={{ fontSize: 12.5 }}>
+                  {a.standing
+                    ? `P${a.standing.position} · ${a.standing.points} pts${a.standing.wins ? ` · ${a.standing.wins} wins` : ''}`
+                    : a.symbol}
+                </div>
               </span>
             </span>
             <span style={{ textAlign: 'right' }}>
@@ -33,6 +40,12 @@ export default async function MarketList() {
           </Link>
         ))}
       </div>
+      {assets.some((a) => a.standing) && (
+        <p className="faint" style={{ fontSize: 12, marginTop: 10, lineHeight: 1.5 }}>
+          Standings are the sport. Prices are the market — set entirely by
+          traders. When they disagree, that&apos;s your edge.
+        </p>
+      )}
     </>
   );
 }
