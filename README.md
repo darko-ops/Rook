@@ -17,6 +17,22 @@ their friends. Dark, minimal, and unmistakably not a sportsbook.
 - [v1 Product Spec](docs/v1-product-spec.md) — the tight reference: what v1
   is, the three screens, core market mechanics, ship sequence, and open
   decisions.
+- [Phase 0 Results](docs/phase0-results.md) — AMM/mover/Rook-Score simulation
+  evidence and the validated v1 config.
+
+## Repo
+
+```
+packages/engine/   # AMM math, house mover, Rook Score — pure, deterministic, tested
+sim/               # Phase 0 simulation harness (agents, news stream, sweeps)
+docs/
+```
+
+```sh
+npm install
+npm test           # engine unit tests
+npm run sim        # Phase 0 sweeps → sim/out/report.txt + sim/out/v1-config.json
+```
 
 ## v1 at a glance
 
