@@ -333,10 +333,12 @@ async function main() {
   console.log('\ndogfood: verifying invariants');
   const failures: string[] = [];
 
-  // 1. price reconstructible from trades: supply == sum of signed trade qty
+  // 1. price reconstructible from trades: supply == sum of signed CURVE qty
+  //    (book fills transfer shares user↔user; supply untouched by design)
   const recon = await sql`
     select a.symbol, a.supply,
-      coalesce(sum(case when t.side = 'buy' then t.qty else -t.qty end), 0) as replayed
+      coalesce(sum(case when t.side = 'buy' then t.qty else -t.qty end)
+        filter (where t.venue = 'curve'), 0) as replayed
     from assets a left join trades t on t.asset_id = a.id
     where a.season_id = ${seasonId}
     group by a.id
@@ -371,8 +373,11 @@ async function main() {
   }
 
   // 4. house share of daily price movement stays under cap (R1)
+  // bucket by season-anchored 24h periods (the sim's day-index bucketing):
+  // the mover enforces a trailing-24h cap, so calendar-midnight buckets add
+  // run-dependent alignment noise on a thin market
   const shares = await sql`
-    select date_trunc('day', t.ts) as day, a.symbol,
+    select floor(extract(epoch from (t.ts - ${startsAt})) / 86400)::int as day, a.symbol,
       coalesce(sum(abs(t.price_after - t.price_before)) filter (where t.actor = 'house'), 0) as house,
       coalesce(sum(abs(t.price_after - t.price_before)) filter (where t.actor = 'user'), 0) as organic,
       coalesce(sum(abs(t.cash_delta)) filter (where t.actor = 'user'), 0) as organic_notional
@@ -387,10 +392,47 @@ async function main() {
       .sort((x, y) => x - y);
     return vals[Math.floor(0.95 * (vals.length - 1))] ?? 0;
   };
-  // Cap compliance is judged where traders were actually present; quiet
-  // asset-days are the quiet-floor's territory by design (reported anyway).
+  // dashboard statistics (bucketed share is alignment-sensitive on a thin
+  // market — reported, not gated)
   const p95 = p95Of(shares.filter((s) => s.organic_notional >= 250));
   const p95All = p95Of(shares.filter((s) => s.organic > 0));
+
+  // 4b. THE R1 HARD GATE — replay the mover's own promise from the audit
+  // trail: at every house trade, cumulative house impact in the trailing
+  // 24h window ≤ max(quiet floor, C/(1−C) × organic impact in that window).
+  const allTrades = await sql`
+    select t.asset_id, t.actor, t.ts, abs(t.price_after - t.price_before) as impact,
+           t.price_before
+    from trades t join assets a on a.id = t.asset_id
+    where a.season_id = ${seasonId} and t.venue = 'curve'
+    order by t.ts, t.id
+  `;
+  const windowMs = cfg.mover.windowTicks * 3600e3;
+  const capRatio = cfg.mover.capC / (1 - cfg.mover.capC);
+  let capViolations = 0;
+  const byAsset = new Map<number, Array<{ actor: string; ts: number; impact: number; price: number }>>();
+  for (const t of allTrades) {
+    (byAsset.get(t.asset_id) ?? byAsset.set(t.asset_id, []).get(t.asset_id)!).push({
+      actor: t.actor, ts: new Date(t.ts).getTime(), impact: t.impact, price: t.price_before,
+    });
+  }
+  for (const rows of byAsset.values()) {
+    for (let i = 0; i < rows.length; i++) {
+      const t = rows[i]!;
+      if (t.actor !== 'house') continue;
+      let houseImpact = 0;
+      let organicImpact = 0;
+      for (let j = i; j >= 0 && rows[j]!.ts > t.ts - windowMs; j--) {
+        if (rows[j]!.actor === 'house') houseImpact += rows[j]!.impact;
+        else organicImpact += rows[j]!.impact;
+      }
+      const allowed = Math.max(cfg.mover.quietImpactFloor * t.price, capRatio * organicImpact);
+      if (houseImpact > allowed * 1.05 + 1e-9) capViolations++;
+    }
+  }
+  if (capViolations > 0) {
+    failures.push(`${capViolations} house trades exceeded the trailing-window cap (R1 audit)`);
+  }
 
   // 5. the loop produced everything downstream
   const [{ c: newsCount }] = (await sql`select count(*)::int as c from news_events`) as unknown as [{ c: number }];
@@ -417,15 +459,13 @@ async function main() {
   console.log(`  mover decisions:   ${moverCount}`);
   console.log(`  price snapshots:   ${snapCount}`);
   console.log(`  scoring windows:   ${windowCount}`);
-  console.log(`  house share p95:   ${(100 * p95).toFixed(1)}% on trader-active asset-days (cap ${100 * cfg.mover.capC}%) · ${(100 * p95All).toFixed(1)}% incl. quiet days`);
+  console.log(`  R1 cap audit:      ${capViolations} violations across every house trade's trailing window`);
+  console.log(`  house share p95:   ${(100 * p95).toFixed(1)}% bucketed dashboard stat (${(100 * p95All).toFixed(1)}% incl. quiet days)`);
   console.log(`  leaderboard top:   ${board.slice(0, 3).map((b) => `@${b.handle} ${Math.round(b.rookScore)}`).join(' · ')}`);
   console.log('  mean rook score by archetype:');
   for (const [arch, scores] of [...byArch.entries()].sort((a, b) => mean(b[1]) - mean(a[1]))) {
     console.log(`    ${arch.padEnd(13)} ${mean(scores).toFixed(0)} (${scores.length})`);
   }
-  // same tolerance as the Phase 0 sim gate: the mover enforces the cap on a
-  // trailing window; measuring on calendar days adds boundary noise
-  if (p95 > cfg.mover.capC + 0.02) failures.push(`house share p95 ${(100 * p95).toFixed(1)}% over cap`);
 
   if (failures.length > 0) {
     console.error(`\n✗ DOGFOOD FAILED:\n  - ${failures.join('\n  - ')}`);

@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { db } from '@rook/db';
-import { measure, newsFeed, priceHistory, track } from '@rook/core';
+import { bookDepth, loadConfig, measure, newsFeed, priceHistory, track } from '@rook/core';
+import { isGraduated } from '@rook/engine';
 import { Delta, fmtMoney, fmtPct, Line } from '../../../components/charts';
 import { TradeSheet } from '../../../components/TradeSheet';
 import { activeSeason, sessionUser } from '../../../lib/session';
@@ -24,11 +25,20 @@ export default async function MarketScreen(ctx: { params: Promise<{ symbol: stri
   if (!asset) notFound();
 
   const user = await sessionUser();
-  const [m, news, history] = await Promise.all([
+  const [m, news, history, depth, cfg] = await Promise.all([
     measure(asset.id, season.id, now),
     newsFeed(season.id, now, asset.id, 15),
     priceHistory(asset.id, new Date(season.starts_at)),
+    bookDepth(asset.id),
+    loadConfig(now),
   ]);
+  const graduated = isGraduated(
+    { ...cfg, curve: { p0: asset.p0, m: asset.m } },
+    depth.bids[0]?.price ?? null,
+    depth.asks[0]?.price ?? null,
+    asset.supply,
+    400,
+  );
   if (user) await track('open:market', user.id, { symbol: asset.symbol });
 
   let heldQty = 0;
@@ -96,6 +106,38 @@ export default async function MarketScreen(ctx: { params: Promise<{ symbol: stri
           signedIn={!!user}
         />
       </div>
+
+      {(depth.bids.length > 0 || depth.asks.length > 0) && (
+        <>
+          <h2>Order book{graduated ? ' · graduated' : ''}</h2>
+          <div className="panel" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div>
+              <div className="faint" style={{ fontSize: 11.5, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Bids</div>
+              {depth.bids.length === 0 && <div className="faint" style={{ fontSize: 13 }}>—</div>}
+              {depth.bids.map((b) => (
+                <div key={b.price} className="row" style={{ fontSize: 13.5, padding: '3px 0' }}>
+                  <span className="num up">${b.price.toFixed(2)}</span>
+                  <span className="num faint">{b.qty.toFixed(1)}</span>
+                </div>
+              ))}
+            </div>
+            <div>
+              <div className="faint" style={{ fontSize: 11.5, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Asks</div>
+              {depth.asks.length === 0 && <div className="faint" style={{ fontSize: 13 }}>—</div>}
+              {depth.asks.map((a2) => (
+                <div key={a2.price} className="row" style={{ fontSize: 13.5, padding: '3px 0' }}>
+                  <span className="num down">${a2.price.toFixed(2)}</span>
+                  <span className="num faint">{a2.qty.toFixed(1)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <p className="faint" style={{ fontSize: 11.5, marginTop: 6 }}>
+            Orders fill book-first when the book beats the curve; the curve is
+            always there as backstop liquidity.
+          </p>
+        </>
+      )}
 
       <h2>Measurement</h2>
       <div className="panel" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', columnGap: 16 }}>

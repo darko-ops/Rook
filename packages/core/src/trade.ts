@@ -44,18 +44,10 @@ export interface TradeRequest {
 }
 
 /**
- * The trade path (§22): validate → per-asset lock → curve math → atomic
- * writes to trades/holdings/balances → caller emits price point.
- *
- * The per-asset advisory lock makes this a single-writer service per asset:
- * an AMM is a shared counter; correctness beats cleverness.
+ * House mover trades: always the curve, never the book (the mover supplies
+ * baseline liquidity; it does not take other users' orders). User trades
+ * live in orders.ts (v2 hybrid routing) behind the same per-asset lock.
  */
-export async function executeUserTrade(userId: number, req: TradeRequest): Promise<ExecutedTrade> {
-  const cfg = await loadConfig(req.now);
-  return execute(cfg, { actor: 'user', userId }, req, {});
-}
-
-/** House mover trades follow the identical path, flagged actor='house'. */
 export async function executeHouseTrade(
   cfg: EngineConfig,
   req: TradeRequest,

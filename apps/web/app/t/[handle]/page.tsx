@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { traderProfile } from '@rook/core';
+import { isCopying, traderProfile } from '@rook/core';
 import { fmtMoney, fmtPct } from '../../../components/charts';
+import { CopyButton } from '../../../components/CopyButton';
 import { FlairPicker } from '../../../components/FlairPicker';
 import { FollowButton } from '../../../components/FollowButton';
 import { activeSeason, sessionUser } from '../../../lib/session';
@@ -15,6 +16,7 @@ export default async function TraderScreen(ctx: { params: Promise<{ handle: stri
   const viewer = await sessionUser();
   const p = await traderProfile(handle.toLowerCase(), season.id, new Date(), viewer?.id ?? null);
   if (!p) notFound();
+  const copying = viewer ? await isCopying(viewer.id, p.handle) : false;
 
   return (
     <>
@@ -22,7 +24,10 @@ export default async function TraderScreen(ctx: { params: Promise<{ handle: stri
         <Link href="/board" className="faint" style={{ fontSize: 13 }}>← Leaderboard</Link>
         <div className="row" style={{ marginTop: 10 }}>
           <h1>{p.flair ? `${p.flair} ` : ''}@{p.handle}</h1>
-          <FollowButton handle={p.handle} isFollowing={p.isFollowing} self={viewer?.handle === p.handle} />
+          <span className="row" style={{ gap: 8 }}>
+            {viewer && <CopyButton handle={p.handle} isCopying={copying} self={viewer.handle === p.handle} />}
+            <FollowButton handle={p.handle} isFollowing={p.isFollowing} self={viewer?.handle === p.handle} />
+          </span>
         </div>
         <div className="row" style={{ justifyContent: 'flex-start', gap: 10, marginTop: 8 }}>
           <span className="badge">

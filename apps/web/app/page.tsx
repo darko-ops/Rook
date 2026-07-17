@@ -10,6 +10,7 @@ import {
 import { Delta, fmtMoney, fmtPct, Line } from '../components/charts';
 import { InvitePanel } from '../components/InvitePanel';
 import { Landing } from '../components/Landing';
+import { OpenOrders } from '../components/OpenOrders';
 import { PushToggle } from '../components/PushToggle';
 import { activeSeason, sessionUser } from '../lib/session';
 
@@ -141,6 +142,8 @@ export default async function PortfolioScreen(props: {
           </div>
         </>
       )}
+
+      <OpenOrders />
 
       <InvitePanel />
     </>

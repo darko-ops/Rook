@@ -1,5 +1,6 @@
 import { closeDb } from '@rook/db';
 import {
+  copyTick,
   currentSeason,
   F1_TEAMS,
   ingestNews,
@@ -41,6 +42,11 @@ export async function tick(now: Date, opts: { newsSeed?: number } = {}): Promise
 
   // 3. hourly price snapshots (charts, metrics, TWAP, scoring)
   await snapshotPrices(now);
+
+  // 3b. replicate leader trades for copiers (cursor-based, best-effort)
+  if (opts.newsSeed === undefined) {
+    await copyTick(season.id, now);
+  }
 
   // 4. fold any completed weekly windows into Rook Scores
   await scorePendingWindows(season.id, now);
