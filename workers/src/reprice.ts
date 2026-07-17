@@ -144,7 +144,7 @@ async function main() {
   const agents = await sql`
     select u.id, u.handle from users u
     join balances b on b.user_id = u.id and b.season_id = ${season.id}
-    where u.handle ~ '^(early|momentum|casual|concentrator)_'
+    where u.handle ~ '^(early|momentum|casual|concentrator|latewave)_'
   `;
   if (agents.length === 0) throw new Error('no dogfood agents in this season');
 
@@ -164,9 +164,10 @@ async function main() {
   console.log(`before — teams ρ(price,points) = ${spearman(before, 'team').toFixed(2)}, drivers ρ = ${spearman(before, 'driver').toFixed(2)}\n`);
 
   const rng = new Rng(777);
-  const actP: Record<string, number> = { early: 0.9, momentum: 0.5, casual: 0.4, concentrator: 0.3 };
+  const actP: Record<string, number> = { early: 0.9, momentum: 0.5, casual: 0.4, concentrator: 0.3, latewave: 0.9 };
   const size: Record<string, [number, number]> = {
     early: [400, 900], momentum: [250, 600], casual: [100, 400], concentrator: [200, 500],
+    latewave: [400, 900],
   };
 
   let round = 0;
