@@ -49,25 +49,53 @@ async function loadAssets(seasonId: number): Promise<AssetView[]> {
 
 /**
  * Agents' value heuristic under standings-anchored settlement (decision H):
- * fair value = expected payout at the current championship position,
- * blended toward the mean payout by how much season is left — deep in a
- * season, positions are sticky and prices should sit near their payouts.
- * signal = (fair − price) / fair; positive → underpriced.
+ * fair value = expected payout at the current championship position, blended
+ * toward the mean payout by how *settled* that position is. Two forces make
+ * a position settled: season depth (time burns off uncertainty for everyone)
+ * and points cushion (a dominant leader is settled long before the calendar
+ * says so — mid-season standings gaps carry information the pure time blend
+ * threw away, which kept leaders structurally underpriced).
+ *
+ *   wTime = sqrt(progress)
+ *   lock  = gap to nearest rival / realistic catch-up (½ the best per-round
+ *           rate sustained over the remaining rounds), clamped to [0, 1]
+ *   w     = wTime + (1 − wTime) · lock          // cushion accelerates time
+ *   fair  = w · payout + (1 − w) · mean payout
+ *
+ * A mathematically locked position (gap no rival can close) prices at full
+ * payout regardless of date. signal = (fair − price) / fair; > 0 → underpriced.
  */
 function valueSignals(
   assets: Array<AssetView & { position: number | null }>,
   payouts: { team: number[]; driver: number[] },
-  seasonProgress: number,
+  rounds: { done: number; total: number },
 ): Map<number, number> {
-  const w = Math.sqrt(Math.min(1, Math.max(0, seasonProgress)));
+  const progress = Math.min(1, Math.max(0, rounds.done / rounds.total));
+  const wTime = Math.sqrt(progress);
+  const roundsLeft = Math.max(0, rounds.total - rounds.done);
   const out = new Map<number, number>();
-  for (const a of assets) {
-    if (a.position === null) continue;
-    const table = a.kind === 'driver' ? payouts.driver : payouts.team;
-    const payout = table[Math.min(a.position, table.length) - 1]!;
+  for (const kind of ['team', 'driver'] as const) {
+    const group = assets
+      .filter((a) => a.kind === kind && a.position !== null && a.points !== null)
+      .sort((x, y) => x.position! - y.position!);
+    if (group.length === 0) continue;
+    const table = kind === 'driver' ? payouts.driver : payouts.team;
     const mean = table.reduce((s, x) => s + x, 0) / table.length;
-    const fair = w * payout + (1 - w) * mean;
-    out.set(a.id, (fair - a.price) / fair);
+    const bestRate = rounds.done > 0 ? Math.max(...group.map((a) => a.points! / rounds.done)) : 0;
+    const catchUp = 0.5 * bestRate * roundsLeft; // what a rival can realistically claw back
+    for (let i = 0; i < group.length; i++) {
+      const a = group[i]!;
+      const neighborGaps = [
+        i > 0 ? a.points! - group[i - 1]!.points! : undefined,
+        i < group.length - 1 ? a.points! - group[i + 1]!.points! : undefined,
+      ].filter((g): g is number => g !== undefined).map(Math.abs);
+      const gap = neighborGaps.length ? Math.min(...neighborGaps) : 0;
+      const lock = catchUp > 0 ? Math.min(1, gap / catchUp) : 1;
+      const w = wTime + (1 - wTime) * lock;
+      const payout = table[Math.min(a.position!, table.length) - 1]!;
+      const fair = w * payout + (1 - w) * mean;
+      out.set(a.id, (fair - a.price) / fair);
+    }
   }
   return out;
 }
@@ -143,13 +171,21 @@ async function main() {
 
   let round = 0;
   let trades = 0;
+  let stallRounds = 0;
+  let endState: 'converged' | 'throttled' | 'stalled' | 'max-rounds' = 'max-rounds';
+  const rejects = new Map<string, number>();
+  const bump = (code: string) => rejects.set(code, (rejects.get(code) ?? 0) + 1);
   for (; round < MAX_ROUNDS; round++) {
     const assets = await loadAssets(season.id);
     // converged when nothing trades ≥5% away from payout-anchored fair value
-    const g = valueSignals(assets, payouts, progress);
+    const g = valueSignals(assets, payouts, { done: done_rounds, total: total_rounds });
     const buys = assets.filter((a) => (g.get(a.id) ?? 0) >= 0.05);
     const sells = assets.filter((a) => (g.get(a.id) ?? 0) <= -0.05);
-    if (buys.length === 0 && sells.length === 0) break;
+    if (buys.length === 0 && sells.length === 0) {
+      endState = 'converged';
+      break;
+    }
+    const tradesAtRoundStart = trades;
 
     const now = new Date(now0.getTime() + round * 36e3); // ~36s per round
     for (const agent of agents) {
@@ -170,6 +206,7 @@ async function main() {
             trades++;
           } catch (e) {
             if (!(e instanceof TradeRejected)) throw e;
+            bump(e.code);
           }
         }
       }
@@ -206,11 +243,26 @@ async function main() {
                 trades += 2;
               } catch (e2) {
                 if (!(e2 instanceof TradeRejected)) throw e2;
+                bump(e2.code);
               }
+            } else {
+              bump(e.code); // out of cash with nothing rotatable
             }
+          } else {
+            bump(e.code);
           }
         }
       }
+    }
+
+    // stall detection: agents still see gaps but nothing can execute —
+    // without this the session spins silently and reads as "didn't budge"
+    stallRounds = trades === tradesAtRoundStart ? stallRounds + 1 : 0;
+    if (stallRounds >= 5) {
+      const rateLimited = rejects.get('rate-limit') ?? 0;
+      const total = [...rejects.values()].reduce((s, x) => s + x, 0);
+      endState = total > 0 && rateLimited >= total / 2 ? 'throttled' : 'stalled';
+      break;
     }
   }
 
@@ -219,6 +271,23 @@ async function main() {
   const after = await loadAssets(season.id);
 
   console.log(`done after ${round} rounds · ${trades} trades · market time ≈ ${((round * 36) / 60).toFixed(0)} min`);
+  if (rejects.size > 0) {
+    console.log(`rejections — ${[...rejects.entries()].map(([c, n]) => `${c}: ${n}`).join(' · ')}`);
+  }
+  if (endState === 'converged') {
+    console.log('converged: nothing trades ≥5% from payout-anchored fair\n');
+  } else if (endState === 'throttled') {
+    console.log(
+      `STALLED ON RATE LIMITS: per-asset daily trade windows are exhausted ` +
+        `(trading.maxTradesPerAssetPerDay = ${cfg.trading.maxTradesPerAssetPerDay}, rolling 24h). ` +
+        `Prices did NOT converge this session. Re-run after the window rolls, ` +
+        `or raise the limit via setConfig for a compressed session and restore it after.\n`,
+    );
+  } else if (endState === 'stalled') {
+    console.log('STALLED: agents see gaps but cannot execute (see rejections) — market did not converge.\n');
+  } else {
+    console.log('hit MAX_ROUNDS before convergence.\n');
+  }
   console.log(`after — teams ρ = ${spearman(after, 'team').toFixed(2)}, drivers ρ = ${spearman(after, 'driver').toFixed(2)}\n`);
   for (const kind of ['team', 'driver'] as const) {
     const group = after.filter((a) => a.kind === kind && a.points !== null)
