@@ -81,6 +81,17 @@ export default async function MarketScreen(ctx: { params: Promise<{ symbol: stri
             {asset.kind === 'driver' && asset.team_symbol ? ` · drives for ${asset.team_symbol}` : ''}
           </div>
         )}
+        {cfg.settlement.mode === 'standings' && asset.position != null && (() => {
+          const table = asset.kind === 'driver' ? cfg.settlement.driverPayouts : cfg.settlement.teamPayouts;
+          const payout = table[Math.min(asset.position, table.length) - 1];
+          return payout !== undefined ? (
+            <div className="muted" style={{ fontSize: 12.5, marginTop: 8 }}>
+              Settles by final position — if the season ended today:{' '}
+              <span className="num" style={{ fontWeight: 600, color: 'var(--accent)' }}>${payout.toFixed(2)}</span>
+              {' '}(P{asset.position} pays ${payout.toFixed(2)}, P1 pays ${table[0]!.toFixed(2)})
+            </div>
+          ) : null;
+        })()}
         <div className="num" style={{ fontSize: 30, fontWeight: 700, marginTop: 8 }}>
           {fmtMoney(asset.price)}
         </div>

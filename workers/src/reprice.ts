@@ -2,6 +2,7 @@ import { closeDb, db, migrate } from '@rook/db';
 import {
   currentSeason,
   executeUserTrade,
+  loadConfig,
   Rng,
   snapshotPrices,
   syncStandings,
@@ -29,39 +30,44 @@ interface AssetView {
   kind: 'team' | 'driver';
   price: number;
   points: number | null;
+  position: number | null;
 }
 
 async function loadAssets(seasonId: number): Promise<AssetView[]> {
   const rows = await db()`
-    select a.id, a.symbol, a.name, a.kind, a.p0 + a.m * a.supply as price, s.points
+    select a.id, a.symbol, a.name, a.kind, a.p0 + a.m * a.supply as price,
+           s.points, s.position
     from assets a
     left join standings s on s.asset_id = a.id and s.season_id = a.season_id
     where a.season_id = ${seasonId}
   `;
   return rows.map((r) => ({
-    id: r.id, symbol: r.symbol, name: r.name, kind: r.kind, price: r.price, points: r.points,
+    id: r.id, symbol: r.symbol, name: r.name, kind: r.kind, price: r.price,
+    points: r.points, position: r.position,
   }));
 }
 
 /**
- * Agents' value heuristic, share-based so a flat start still trades:
- * signal = share of the class's championship points − share of the class's
- * price premium over p0. Positive → underpriced, negative → overpriced.
+ * Agents' value heuristic under standings-anchored settlement (decision H):
+ * fair value = expected payout at the current championship position,
+ * blended toward the mean payout by how much season is left — deep in a
+ * season, positions are sticky and prices should sit near their payouts.
+ * signal = (fair − price) / fair; positive → underpriced.
  */
-function valueSignals(assets: AssetView[]): Map<number, number> {
+function valueSignals(
+  assets: Array<AssetView & { position: number | null }>,
+  payouts: { team: number[]; driver: number[] },
+  seasonProgress: number,
+): Map<number, number> {
+  const w = Math.sqrt(Math.min(1, Math.max(0, seasonProgress)));
   const out = new Map<number, number>();
-  for (const kind of ['team', 'driver'] as const) {
-    const group = assets.filter((a) => a.kind === kind && a.points !== null);
-    if (group.length === 0) continue;
-    const totalPoints = group.reduce((s, a) => s + a.points!, 0) || 1;
-    const premiums = group.map((a) => Math.max(0, a.price - 10));
-    const totalPrem = premiums.reduce((s, p) => s + p, 0);
-    for (let i = 0; i < group.length; i++) {
-      const a = group[i]!;
-      const pointsShare = a.points! / totalPoints;
-      const premShare = totalPrem > 1e-9 ? premiums[i]! / totalPrem : 1 / group.length;
-      out.set(a.id, pointsShare - premShare);
-    }
+  for (const a of assets) {
+    if (a.position === null) continue;
+    const table = a.kind === 'driver' ? payouts.driver : payouts.team;
+    const payout = table[Math.min(a.position, table.length) - 1]!;
+    const mean = table.reduce((s, x) => s + x, 0) / table.length;
+    const fair = w * payout + (1 - w) * mean;
+    out.set(a.id, (fair - a.price) / fair);
   }
   return out;
 }
@@ -114,8 +120,19 @@ async function main() {
   `;
   if (agents.length === 0) throw new Error('no dogfood agents in this season');
 
+  const cfg = await loadConfig(now0);
+  const payouts = { team: cfg.settlement.teamPayouts, driver: cfg.settlement.driverPayouts };
+  const [{ done_rounds }] = (await sql`
+    select coalesce(max(round), 0)::int as done_rounds from standings where season_id = ${season.id}
+  `) as unknown as [{ done_rounds: number }];
+  const [{ total_rounds }] = (await sql`
+    select greatest(count(*), 1)::int as total_rounds from races where season_id = ${season.id}
+  `) as unknown as [{ total_rounds: number }];
+  const progress = Math.min(1, done_rounds / total_rounds);
+
   const before = await loadAssets(season.id);
   console.log(`repricing session: ${agents.length} agents, ${before.length} assets`);
+  console.log(`settlement: ${cfg.settlement.mode} · season progress ${(100 * progress).toFixed(0)}% (${done_rounds}/${total_rounds} rounds)`);
   console.log(`before — teams ρ(price,points) = ${spearman(before, 'team').toFixed(2)}, drivers ρ = ${spearman(before, 'driver').toFixed(2)}\n`);
 
   const rng = new Rng(777);
@@ -128,13 +145,10 @@ async function main() {
   let trades = 0;
   for (; round < MAX_ROUNDS; round++) {
     const assets = await loadAssets(season.id);
-    if (
-      spearman(assets, 'team') >= TARGET_CORRELATION &&
-      spearman(assets, 'driver') >= TARGET_CORRELATION
-    ) break;
-    const g = valueSignals(assets);
-    const buys = assets.filter((a) => (g.get(a.id) ?? 0) >= 0.02);
-    const sells = assets.filter((a) => (g.get(a.id) ?? 0) <= -0.02);
+    // converged when nothing trades ≥5% away from payout-anchored fair value
+    const g = valueSignals(assets, payouts, progress);
+    const buys = assets.filter((a) => (g.get(a.id) ?? 0) >= 0.05);
+    const sells = assets.filter((a) => (g.get(a.id) ?? 0) <= -0.05);
     if (buys.length === 0 && sells.length === 0) break;
 
     const now = new Date(now0.getTime() + round * 36e3); // ~36s per round

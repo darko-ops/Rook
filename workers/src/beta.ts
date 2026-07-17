@@ -186,6 +186,12 @@ async function main() {
       console.log(`season ${seasonId} settled at final-week TWAP`);
       break;
     }
+    case 'settlement': {
+      const mode = args[0] === 'standings' ? 'standings' : 'twap';
+      await setConfig2('engine', { settlement: { mode } }, now);
+      console.log(`settlement mode: ${mode} (decision H — disclosed on /fairness and asset pages)`);
+      break;
+    }
     case 'rollover': {
       const season = await currentSeason(now);
       if (!season) throw new Error('no open season');

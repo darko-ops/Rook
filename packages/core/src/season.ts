@@ -97,16 +97,32 @@ export async function settleSeason(seasonId: number, now: Date): Promise<void> {
       await tx`update orders set status = 'cancelled' where id = ${o.id}`;
     }
 
-    // 2. settle every asset at final-week TWAP
+    // 2. settle every asset per the configured mode (decision H)
+    const cfg = await loadConfig(now);
     const weekAgo = new Date(new Date(season.ends_at).getTime() - 7 * 86400e3);
-    const assets = await tx`select id from assets where season_id = ${seasonId}`;
+    const assets = await tx`select id, kind from assets where season_id = ${seasonId}`;
     for (const a of assets) {
-      const [twap] = await tx`
-        select avg(price) as p from price_points
-        where asset_id = ${a.id} and ts >= ${weekAgo} and ts <= ${season.ends_at}
-      `;
-      const [spot] = await tx`select p0 + m * supply as p from assets where id = ${a.id}`;
-      const price = twap?.p ?? spot!.p;
+      let price: number | null = null;
+      if (cfg.settlement.mode === 'standings') {
+        const [standing] = await tx`
+          select position from standings where season_id = ${seasonId} and asset_id = ${a.id}
+        `;
+        const table =
+          a.kind === 'driver' ? cfg.settlement.driverPayouts : cfg.settlement.teamPayouts;
+        if (standing) {
+          // positions beyond the table settle at its last (lowest) payout
+          price = table[Math.min(standing.position, table.length) - 1] ?? null;
+        }
+      }
+      if (price === null) {
+        // TWAP mode — and the fallback when standings are missing
+        const [twap] = await tx`
+          select avg(price) as p from price_points
+          where asset_id = ${a.id} and ts >= ${weekAgo} and ts <= ${season.ends_at}
+        `;
+        const [spot] = await tx`select p0 + m * supply as p from assets where id = ${a.id}`;
+        price = twap?.p ?? spot!.p;
+      }
       await tx`update assets set settled_price = ${price} where id = ${a.id}`;
       // convert all holdings to cash at the settlement price
       await tx`

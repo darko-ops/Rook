@@ -1,4 +1,4 @@
-import { houseShareByDay } from '@rook/core';
+import { houseShareByDay, loadConfig } from '@rook/core';
 import { activeSeason } from '../../lib/session';
 
 export const dynamic = 'force-dynamic';
@@ -6,6 +6,7 @@ export const dynamic = 'force-dynamic';
 /** Disclosed mechanics are fair mechanics (§10). Published from day one. */
 export default async function FairnessPage() {
   const season = await activeSeason();
+  const cfg = await loadConfig(new Date());
   const shares = season ? await houseShareByDay(season.id, 7) : [];
   const byDay = new Map<string, { house: number; organic: number }>();
   for (const s of shares) {
@@ -68,6 +69,30 @@ export default async function FairnessPage() {
               </tbody>
             </table>
           )}
+        </section>
+        <section className="panel">
+          <strong>How seasons settle.</strong>
+          <p className="muted" style={{ marginTop: 6 }}>
+            {cfg.settlement.mode === 'standings' ? (
+              <>
+                Each asset pays a fixed, published amount by its <em>final
+                championship position</em> — P1 teams settle at
+                ${cfg.settlement.teamPayouts[0]!.toFixed(2)}, last place at
+                ${cfg.settlement.teamPayouts[cfg.settlement.teamPayouts.length - 1]!.toFixed(2)}
+                {' '}(drivers likewise, ${cfg.settlement.driverPayouts[0]!.toFixed(2)} down to
+                ${cfg.settlement.driverPayouts[cfg.settlement.driverPayouts.length - 1]!.toFixed(2)}).
+                The sport decides positions; the market prices the
+                probability all season; Rook still sets nothing. The full
+                table is shown on every asset page.
+              </>
+            ) : (
+              <>
+                Each asset settles at its time-weighted average market price
+                over the final week of the season — last-minute manipulation
+                washes out, and sentiment is the measure end-to-end.
+              </>
+            )}
+          </p>
         </section>
         <section className="panel">
           <strong>Equal stacks. No top-ups. Ever.</strong>

@@ -14,6 +14,18 @@ export interface EngineConfig {
     startingStack: number; // equal stack per user per season
     maxTradesPerAssetPerDay: number; // per-user rate limit (anti-spam/wash)
   };
+  /**
+   * Decision H (§12). 'twap': settle at final-week average price — pure
+   * sentiment end-to-end, no fundamental anchor. 'standings': settle at a
+   * fixed, disclosed payout by final championship position — the sport
+   * decides positions, traders price the probability, Rook still predicts
+   * nothing. Payout tables are indexed by position (1-based).
+   */
+  settlement: {
+    mode: 'twap' | 'standings';
+    teamPayouts: number[];
+    driverPayouts: number[];
+  };
   mover: {
     // Nudge notional per event magnitude class, before δ scaling.
     nudgeNotional: Record<MagnitudeClass, number>;
@@ -56,6 +68,14 @@ export interface EngineConfig {
 export const defaultConfig: EngineConfig = {
   curve: { p0: 10, m: 0.003 },
   trading: { maxTradeNotional: 1000, startingStack: 10_000, maxTradesPerAssetPerDay: 30 },
+  settlement: {
+    mode: 'twap', // spec default; the beta evaluates 'standings' (decision H)
+    teamPayouts: [30, 24, 20, 17, 14.5, 12.5, 11, 9.5, 8.5, 7.5, 7],
+    driverPayouts: [
+      30, 25, 21, 18, 16, 14.5, 13, 12, 11, 10, 9.2, 8.5,
+      7.9, 7.4, 7, 6.6, 6.2, 5.8, 5.4, 5, 4.6, 4.2,
+    ],
+  },
   mover: {
     nudgeNotional: { small: 150, medium: 400, large: 900 },
     capC: 0.2,

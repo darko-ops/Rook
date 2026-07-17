@@ -130,4 +130,24 @@ describe('the season turn (settle → re-issue → carry)', () => {
     const p = await traderProfile('dana', newSeasonId, ENDS, null);
     expect(p!.career.some((c) => c.season === 'Season One' && Math.round(c.rookScore) === 1275)).toBe(true);
   });
+
+  it('standings mode settles at the payout table (decision H)', async () => {
+    const { setConfig, settleSeason, defaultTeamPayout } = await import('@rook/core').then(
+      async (m) => ({
+        setConfig: m.setConfig,
+        settleSeason: m.settleSeason,
+        defaultTeamPayout: (await import('@rook/engine')).defaultConfig.settlement.teamPayouts,
+      }),
+    );
+    await setConfig({ settlement: { mode: 'standings' } }, ENDS);
+    // give the new season's asset a standing: P1
+    const [asset] = await db()`select id from assets where season_id = ${newSeasonId}`;
+    await db()`insert into standings (season_id, asset_id, round, position, points, wins)
+      values (${newSeasonId}, ${asset!.id}, 20, 1, 400, 10)`;
+    await executeUserTrade(dana, { assetId: asset!.id, side: 'buy', notional: 200, now: ENDS });
+    await settleSeason(newSeasonId, new Date('2026-07-01T00:00:00Z'));
+    const [settled] = await db()`select settled_price from assets where id = ${asset!.id}`;
+    expect(settled!.settled_price).toBe(defaultTeamPayout[0]); // P1 pays the top payout
+    await setConfig({ settlement: { mode: 'twap' } }, new Date('2026-07-02T00:00:00Z'));
+  });
 });
