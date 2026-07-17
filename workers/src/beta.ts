@@ -115,6 +115,36 @@ async function main() {
       console.log(`admitted ${admitted.length} from the waitlist (codes emailed; dev mode logs them above)`);
       break;
     }
+    case 'data-key': {
+      const name = args[0];
+      if (!name) throw new Error('usage: data-key <licensee-name> [dailyLimit]');
+      const { mintApiKey } = await import('@rook/core');
+      const key = await mintApiKey(name, Number(args[1] ?? 1000));
+      console.log(key);
+      break;
+    }
+    case 'index-backfill': {
+      const season = await currentSeason(now);
+      if (!season) throw new Error('no open season');
+      // rebuild index_points from historical snapshots: cap-weighted average
+      // price vs the flat start (100 = league at p0)
+      await db()`delete from index_points where season_id = ${season.id}`;
+      await db()`
+        insert into index_points (season_id, ts, market_cap, value)
+        select ${season.id}, p.ts, sum(p.price * p.supply),
+               100 * (sum(p.price * p.supply) / sum(p.supply))
+                   / (select avg(p0) from assets where season_id = ${season.id})
+        from price_points p join assets a on a.id = p.asset_id
+        where a.season_id = ${season.id}
+        group by p.ts having sum(p.supply) > 0
+        order by p.ts
+      `;
+      const [{ n }] = (await db()`
+        select count(*)::int as n from index_points where season_id = ${season.id}
+      `) as unknown as [{ n: number }];
+      console.log(`index backfilled: ${n} points`);
+      break;
+    }
     case 'plan': {
       const [handle, plan] = args;
       if (!handle || (plan !== 'free' && plan !== 'pro')) throw new Error('usage: plan <handle> free|pro');

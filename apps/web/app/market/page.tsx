@@ -1,6 +1,6 @@
 import Link from 'next/link';
-import { listAssets } from '@rook/core';
-import { Delta, fmtMoney } from '../../components/charts';
+import { indexSeries, listAssets } from '@rook/core';
+import { Delta, fmtMoney, Line } from '../../components/charts';
 import { activeSeason } from '../../lib/session';
 
 export const dynamic = 'force-dynamic';
@@ -12,8 +12,14 @@ export default async function MarketList(props: {
   if (!season) return <p style={{ paddingTop: 60 }}>No open season.</p>;
   const { view } = await props.searchParams;
   const kind = view === 'racers' ? 'driver' : 'team';
-  const assets = await listAssets(season.id, new Date(), kind);
+  const now = new Date();
+  const [assets, idx] = await Promise.all([
+    listAssets(season.id, now, kind),
+    indexSeries(season.id, new Date(now.getTime() - 30 * 86400e3)),
+  ]);
   const round = assets.find((a) => a.standing)?.standing?.round;
+  const idxNow = idx[idx.length - 1]?.value as number | undefined;
+  const idxDayAgo = idx[Math.max(0, idx.length - 25)]?.value as number | undefined;
 
   const tab = (label: string, href: string, active: boolean) => (
     <Link
@@ -41,6 +47,22 @@ export default async function MarketList(props: {
           {round ? ` · championship after round ${round}` : ''}
         </div>
       </header>
+      {idxNow !== undefined && (
+        <div className="panel row" style={{ marginTop: 14 }}>
+          <span>
+            <div className="faint" style={{ fontSize: 11.5, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Rook Index</div>
+            <div className="num" style={{ fontSize: 20, fontWeight: 700 }}>
+              {idxNow.toFixed(1)}
+              {idxDayAgo !== undefined && idxDayAgo > 0 && (
+                <span className={`num ${idxNow >= idxDayAgo ? 'up' : 'down'}`} style={{ fontSize: 13, marginLeft: 8 }}>
+                  {idxNow >= idxDayAgo ? '▲' : '▼'} {Math.abs((idxNow / idxDayAgo - 1) * 100).toFixed(1)}% 24h
+                </span>
+              )}
+            </div>
+          </span>
+          {idx.length > 1 && <Line points={idx.map((p) => p.value as number)} width={150} height={40} fill />}
+        </div>
+      )}
       <div style={{ display: 'flex', gap: 6, marginTop: 14 }}>
         {tab('Teams', '/market', kind === 'team')}
         {tab('Racers', '/market?view=racers', kind === 'driver')}

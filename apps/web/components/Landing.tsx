@@ -199,7 +199,7 @@ export function Landing({ assets, inviteRequired, magicLink, authError }: Props)
       </div>
 
       <p className="faint" style={{ fontSize: 12, textAlign: 'center', margin: '30px 0 10px' }}>
-        Play money only · rook.ai
+        Play money only · rook.ai · <a href="/data" style={{ textDecoration: 'underline' }}>data licensing</a>
       </p>
     </div>
   );

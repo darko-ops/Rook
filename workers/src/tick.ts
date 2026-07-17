@@ -2,12 +2,14 @@ import { closeDb } from '@rook/db';
 import {
   copyTick,
   currentSeason,
+  detectMoments,
   F1_TEAMS,
   ingestNews,
   moverTick,
   newsSourceFor,
   pushTick,
   scorePendingWindows,
+  snapshotIndex,
   snapshotPrices,
   syncStandings,
   SyntheticF1Source,
@@ -40,8 +42,10 @@ export async function tick(now: Date, opts: { newsSeed?: number } = {}): Promise
   // 2. house mover consumes fresh classified events
   await moverTick(now);
 
-  // 3. hourly price snapshots (charts, metrics, TWAP, scoring)
+  // 3. hourly price snapshots (charts, metrics, TWAP, scoring) + Rook Index
   await snapshotPrices(now);
+  await snapshotIndex(season.id, now);
+  await detectMoments(season.id, now);
 
   // 3b. replicate leader trades for copiers (cursor-based, best-effort)
   if (opts.newsSeed === undefined) {
