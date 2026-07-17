@@ -71,7 +71,9 @@ function valueSignals(
   rounds: { done: number; total: number },
 ): Map<number, number> {
   const progress = Math.min(1, Math.max(0, rounds.done / rounds.total));
-  const wTime = Math.sqrt(progress);
+  // ^0.35 (was sqrt): positions harden faster than the calendar — a 1-point
+  // team nine rounds in is not "40% likely to be mid-table by December"
+  const wTime = Math.pow(progress, 0.35);
   const roundsLeft = Math.max(0, rounds.total - rounds.done);
   const out = new Map<number, number>();
   for (const kind of ['team', 'driver'] as const) {
