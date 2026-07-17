@@ -186,6 +186,19 @@ async function main() {
       console.log(`season ${seasonId} settled at final-week TWAP`);
       break;
     }
+    case 'rollover': {
+      const season = await currentSeason(now);
+      if (!season) throw new Error('no open season');
+      const newName = args[0] ?? `${season.name} → next`;
+      const endsAt = new Date(args[1] ?? now.getTime() + 200 * 86400e3);
+      const { rolloverSeason, seedRaces: seed } = await import('@rook/core');
+      const newId = await rolloverSeason(season.id, newName, now, endsAt, now);
+      await seed(newId);
+      console.log(
+        `season ${season.id} settled · season ${newId} "${newName}" open — fresh stacks issued, Rook Scores carried`,
+      );
+      break;
+    }
     default:
       console.log(
         'commands: open-season | invites | gate on|off | news rss|synthetic | auth magic|handle | grant-invites [n] | waitlist | admit-wave [n] | add-drivers | standings | plan <handle> free|pro | metrics | settle',

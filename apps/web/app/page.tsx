@@ -81,6 +81,21 @@ export default async function PortfolioScreen(props: {
         )}
       </section>
 
+      {(() => {
+        const daysLeft = (new Date(season.ends_at).getTime() - now.getTime()) / 86400e3;
+        if (daysLeft > 7 || daysLeft <= 0) return null;
+        return (
+          <section className="panel" style={{ marginTop: 18, borderColor: 'var(--accent)' }}>
+            <div style={{ fontWeight: 700 }}>♟ Endgame — {Math.ceil(daysLeft)} day{Math.ceil(daysLeft) === 1 ? '' : 's'} left</div>
+            <p className="muted" style={{ fontSize: 13.5, lineHeight: 1.5, marginTop: 4 }}>
+              Every asset settles at its average price over this final week —
+              last-minute pumps wash out. Your season return becomes career
+              record; everyone starts next season with a fresh $10,000.
+            </p>
+          </section>
+        );
+      })()}
+
       {view.holdings.length === 0 && (
         <section className="panel" style={{ marginTop: 18, borderColor: 'var(--accent)' }}>
           <div style={{ fontWeight: 700, marginBottom: 6 }}>Open your first positions</div>
