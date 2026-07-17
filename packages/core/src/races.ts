@@ -66,6 +66,115 @@ export async function raceDaySet(seasonId: number): Promise<Set<string>> {
   return days;
 }
 
+const SCHEDULE_URL = 'https://api.jolpi.ca/ergast/f1/current.json?limit=30';
+const SYNC_INTERVAL_MS = 4 * 3600e3;
+
+interface ApiRace {
+  round: string;
+  raceName: string;
+  date: string;
+  time?: string;
+  Circuit: { circuitName: string; Location: { locality: string; country: string } };
+  Qualifying?: { date: string; time?: string };
+}
+
+export interface RaceResultRow {
+  pos: number;
+  code: string;
+  driver: string;
+  constructorId: string;
+  points: number;
+}
+
+/**
+ * Sync the authoritative schedule (names, dates, circuits — the seeded
+ * calendar is a best-effort placeholder) and pull top-10 results for
+ * completed rounds. Throttled; failures degrade to stale data.
+ */
+export async function syncRaceDetails(seasonId: number, now: Date): Promise<{ synced: boolean; results: number }> {
+  const sql = db();
+  const [freshest] = await sql`
+    select max(synced_at) as ts from races where season_id = ${seasonId}
+  `;
+  if (freshest?.ts && now.getTime() - new Date(freshest.ts).getTime() < SYNC_INTERVAL_MS) {
+    return { synced: false, results: 0 };
+  }
+  let schedule: ApiRace[];
+  try {
+    const res = await fetch(SCHEDULE_URL, {
+      headers: { 'user-agent': 'Mozilla/5.0 (compatible; RookBeta/0.1)' },
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!res.ok) throw new Error(`schedule fetch: ${res.status}`);
+    schedule = (await res.json()).MRData.RaceTable.Races as ApiRace[];
+  } catch (e) {
+    console.warn(`races: ${e instanceof Error ? e.message : e}`);
+    return { synced: false, results: 0 };
+  }
+  if (schedule.length === 0) return { synced: false, results: 0 };
+
+  for (const r of schedule) {
+    const raceAt = new Date(`${r.date}T${r.time ?? '13:00:00Z'}`);
+    const qualiAt = r.Qualifying
+      ? new Date(`${r.Qualifying.date}T${r.Qualifying.time ?? '14:00:00Z'}`)
+      : new Date(raceAt.getTime() - 23 * 3600e3);
+    await sql`
+      insert into races (season_id, round, name, quali_at, race_at, circuit, locality, country, synced_at)
+      values (${seasonId}, ${Number(r.round)}, ${r.raceName}, ${qualiAt}, ${raceAt},
+              ${r.Circuit.circuitName}, ${r.Circuit.Location.locality}, ${r.Circuit.Location.country}, ${now})
+      on conflict (season_id, round) do update set
+        name = ${r.raceName}, quali_at = ${qualiAt}, race_at = ${raceAt},
+        circuit = ${r.Circuit.circuitName}, locality = ${r.Circuit.Location.locality},
+        country = ${r.Circuit.Location.country}, synced_at = ${now}
+    `;
+  }
+  // drop phantom seeded rounds beyond the authoritative calendar
+  await sql`delete from races where season_id = ${seasonId} and round > ${schedule.length}`;
+
+  // results for completed rounds we don't have yet
+  const missing = await sql`
+    select id, round from races
+    where season_id = ${seasonId} and race_at < ${now} and results is null
+    order by round
+  `;
+  let got = 0;
+  for (const race of missing) {
+    try {
+      const res = await fetch(`https://api.jolpi.ca/ergast/f1/current/${race.round}/results.json`, {
+        headers: { 'user-agent': 'Mozilla/5.0 (compatible; RookBeta/0.1)' },
+        signal: AbortSignal.timeout(15_000),
+      });
+      if (!res.ok) continue;
+      const data = (await res.json()).MRData.RaceTable.Races[0];
+      if (!data?.Results?.length) continue;
+      const rows: RaceResultRow[] = data.Results.slice(0, 10).map((x: {
+        position: string;
+        points: string;
+        Driver: { code?: string; givenName: string; familyName: string };
+        Constructor: { constructorId: string };
+      }) => ({
+        pos: Number(x.position),
+        code: x.Driver.code ?? x.Driver.familyName.slice(0, 3).toUpperCase(),
+        driver: `${x.Driver.givenName} ${x.Driver.familyName}`,
+        constructorId: x.Constructor.constructorId,
+        points: Number(x.points),
+      }));
+      await sql`update races set results = ${sql.json(rows as never)} where id = ${race.id}`;
+      got++;
+    } catch {
+      // stale is fine; next sync retries
+    }
+  }
+  return { synced: true, results: got };
+}
+
+export async function raceSchedule(seasonId: number) {
+  return db()`
+    select round, name, quali_at, race_at, circuit, locality, country, results
+    from races where season_id = ${seasonId} order by round
+  `;
+}
+
 export async function nextRace(seasonId: number, now: Date) {
   const rows = await db()`
     select round, name, quali_at, race_at from races

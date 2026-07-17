@@ -11,6 +11,7 @@ import {
   scorePendingWindows,
   snapshotIndex,
   snapshotPrices,
+  syncRaceDetails,
   syncStandings,
   SyntheticF1Source,
 } from '@rook/core';
@@ -33,10 +34,11 @@ export async function tick(now: Date, opts: { newsSeed?: number } = {}): Promise
   const lookback = new Date(now.getTime() - (opts.newsSeed !== undefined ? 1 : 6) * 3600e3);
   await ingestNews(source, season.id, lookback, now);
 
-  // 1b. real standings sync (display + round-result events; throttled 4h;
-  //     skipped in deterministic dogfood runs)
+  // 1b. real standings + schedule/results sync (throttled 4h; skipped in
+  //     deterministic dogfood runs)
   if (opts.newsSeed === undefined) {
     await syncStandings(season.id, now);
+    await syncRaceDetails(season.id, now);
   }
 
   // 2. house mover consumes fresh classified events
