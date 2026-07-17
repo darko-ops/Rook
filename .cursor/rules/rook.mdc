@@ -1,0 +1,31 @@
+---
+description: Rook core rules — constitution, invariants, and workflow
+alwaysApply: true
+---
+
+Read `AGENTS.md` at the repo root before making changes — it is the
+authoritative guide (constitution, architecture map, dev workflow, danger
+zones). The non-negotiables, in brief:
+
+- Rook prices nothing: no code may set, target, or predict an asset price.
+  The house mover stays directional-only, capped (`mover.capC`), and
+  decaying with organic volume.
+- Metrics come from market activity only (trades, flow, holdings) — never
+  from sporting prediction. Standings are display + disclosed settlement
+  rule, never a pricing input.
+- Equal stacks; money never buys position. Play-money only; no cash-out.
+- All market mutations go through `executeUserTrade` — never write
+  `assets.supply`, `holdings`, or `balances` directly. `trades` is
+  append-only; house trades are flagged and logged.
+- Tunables live in the versioned `config` table; `loadConfig` folds ALL
+  effective rows in order — never hardcode a tunable, never break the fold.
+- `packages/engine` stays pure and deterministic: no I/O, no `Date.now()`,
+  no unseeded randomness. Timestamps are injected as `now: Date` params.
+- Chess vocabulary in status/identity only; Buy/Sell stay plain finance
+  verbs. Dark UI, no casino green.
+- Product docs: `docs/v1-product-spec.md`, `docs/rook-breakdown.md`,
+  `docs/phase0-results.md`.
+
+Workflow: Postgres via `docker compose up -d` (:5455) → `npm run -w
+@rook/db migrate` → `npm test` (engine then core; core is serial,
+DB-backed). CI also typechecks each package and builds the web app.
