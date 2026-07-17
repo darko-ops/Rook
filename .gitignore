@@ -5,3 +5,4 @@ dist/
 sim/out/
 .next/
 next-env.d.ts
+workers/daemon.pid
