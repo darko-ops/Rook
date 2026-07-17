@@ -9,7 +9,7 @@
     "sim"
   ],
   "scripts": {
-    "test": "vitest run",
+    "test": "vitest run --root packages/engine && vitest run --root packages/core",
     "sim": "npm run -w sim start --"
   },
   "devDependencies": {

@@ -66,9 +66,10 @@ export async function joinSeason(userId: number, seasonId: number, now: Date): P
 }
 
 /**
- * Settlement (decision H): each asset settles at the time-weighted average
- * price over the final week, computed from hourly price_points. TWAP resists
- * last-minute manipulation; pure sentiment end-to-end.
+ * Settlement (decision H): mode comes from versioned config. 'standings'
+ * settles each asset at the disclosed payout for its final championship
+ * position (TWAP fallback when standings are missing); 'twap' settles at the
+ * time-weighted average price over the final week, from hourly price_points.
  *
  * Open orders are cancelled first with full escrow refunds (bid cash, ask
  * shares) — settlement must never destroy value a resting order holds.

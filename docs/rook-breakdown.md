@@ -300,13 +300,20 @@ not legal advice.*
 - **Season scoping:** assets settle at season end and re-issue for the new
   season. Everyone re-receives the standard stack each season; career
   record and Rook Score persist across seasons.
-- **Settlement value (decision H, recommended default):** settle each asset
-  at the **time-weighted average market price over the final week** of the
-  season (TWAP prevents last-minute manipulation). This keeps Rook pure
-  sentiment end-to-end and regulatorily cleanest.
-  *Alternative to evaluate in beta:* standings-anchored settlement (payout
-  table by final constructor position) — sharpens the "being right"
-  incentive but moves the instrument toward prediction-market territory;
+- **Settlement value (decision H — DECIDED: standings-anchored):** each
+  asset settles at a **fixed, disclosed payout by final championship
+  position** (teams P1 $30 → P11 $7; drivers P1 $30 → P22 $4.20), with
+  final-week TWAP as the fallback when standings are missing. The original
+  TWAP default was rejected as structurally unanchored: nothing forced a
+  near-locked champion to trade far above a backmarker, however deep the
+  season. The payout table keeps the constitution intact — *the sport
+  decides positions, traders price the probability, Rook still sets
+  nothing* (a disclosed rule, not an opinion) — and it is disclosed
+  everywhere: the fairness page explains how seasons settle, and every
+  asset page shows "if the season ended today: $X."
+  *Regulatory note:* standings-anchored settlement moves the instrument
+  toward prediction-market territory (closer to the CFTC's permitted
+  "season-long performance" category, but also more outcome-linked) —
   revisit with counsel before any real-money phase.
 
 ## 13. Market mechanics
@@ -625,7 +632,8 @@ season look like, and who am I beating" in their first session.**
 9. Screen 2: Market + trade sheet
 10. Screen 3: Leaderboard + profiles + follow
 11. Fairness page; instrumentation events (§22)
-12. Season lifecycle jobs: open, snapshot, settle (TWAP), re-issue
+12. Season lifecycle jobs: open, snapshot, settle (standings payout
+    tables, TWAP fallback), re-issue
 13. Seed + closed beta (§18)
 
 ---
@@ -685,9 +693,10 @@ likely the single highest-leverage v1.5 feature for the loop.
   Endgame boards aren't diluted.
 - **Privacy of holdings:** public-by-default is the v1 culture bet;
   revisit if it chills trading among beta users.
-- **Settlement anchor (decision H):** revisit TWAP-vs-standings settlement
-  with beta data — and with counsel before any real-money phase, since the
-  answer changes the instrument's regulatory character.
+- **Settlement anchor (decision H):** decided — standings-anchored payout
+  tables with TWAP fallback (§12). Still revisit with counsel before any
+  real-money phase, since outcome-linked settlement changes the
+  instrument's regulatory character.
 - **Handle/domain follow-through:** confirm rook.com's owner is a parked
   page (not a live product) before any brand spend that assumes eventual
   acquisition; register @rookhq-style handles across platforms now.
