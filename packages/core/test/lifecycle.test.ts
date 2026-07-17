@@ -131,6 +131,19 @@ describe('the season turn (settle → re-issue → carry)', () => {
     expect(p!.career.some((c) => c.season === 'Season One' && Math.round(c.rookScore) === 1275)).toBe(true);
   });
 
+  it('config patches fold cumulatively — a later patch keeps earlier ones', async () => {
+    const { loadConfig, setConfig } = await import('@rook/core');
+    // dated before every other config write in this suite so the fold
+    // order stays: these patches → the settlement test's mode patch
+    const t0 = new Date('2026-01-01T00:00:00Z');
+    await setConfig({ settlement: { mode: 'standings' } }, t0);
+    await setConfig({ trading: { maxTradesPerAssetPerDay: 99 } }, new Date(t0.getTime() + 1000));
+    const cfg = await loadConfig(new Date(t0.getTime() + 2000));
+    expect(cfg.settlement.mode).toBe('standings'); // not clobbered
+    expect(cfg.trading.maxTradesPerAssetPerDay).toBe(99);
+    await setConfig({ settlement: { mode: 'twap' }, trading: { maxTradesPerAssetPerDay: 30 } }, new Date(t0.getTime() + 3000));
+  });
+
   it('standings mode settles at the payout table (decision H)', async () => {
     const { setConfig, settleSeason, defaultTeamPayout } = await import('@rook/core').then(
       async (m) => ({

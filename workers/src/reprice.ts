@@ -174,16 +174,41 @@ async function main() {
         }
       }
       if (buys.length > 0) {
-        // weight toward the biggest gaps
+        // weight toward the biggest gaps, spread across the top six
         const sorted = [...buys].sort((x, y) => (g.get(y.id) ?? 0) - (g.get(x.id) ?? 0));
-        const pick = sorted[Math.min(rng.int(0, 3), sorted.length - 1)]!;
+        const pick = sorted[Math.min(rng.int(0, 6), sorted.length - 1)]!;
+        const notional = rng.range(lo, hi);
         try {
-          await executeUserTrade(agent.id, {
-            assetId: pick.id, side: 'buy', notional: rng.range(lo, hi), now,
-          });
+          await executeUserTrade(agent.id, { assetId: pick.id, side: 'buy', notional, now });
           trades++;
         } catch (e) {
           if (!(e instanceof TradeRejected)) throw e;
+          if (e.code === 'insufficient-cash') {
+            // rotation: fund conviction by selling whatever they hold that
+            // isn't itself underpriced — worst signal (most overpriced) first
+            const held = await sql`
+              select h.asset_id, h.qty, a.p0 + a.m * a.supply as price
+              from holdings h join assets a on a.id = h.asset_id
+              where h.user_id = ${agent.id} and a.season_id = ${season.id} and h.qty > 1
+            `;
+            const nearFair = held
+              .filter((x) => (g.get(x.asset_id) ?? 0) < 0.049 && x.asset_id !== pick.id)
+              .sort((x, y) => (g.get(x.asset_id) ?? 0) - (g.get(y.asset_id) ?? 0))[0];
+            if (nearFair) {
+              try {
+                await executeUserTrade(agent.id, {
+                  assetId: nearFair.asset_id,
+                  side: 'sell',
+                  qty: Math.min(nearFair.qty, notional / nearFair.price),
+                  now,
+                });
+                await executeUserTrade(agent.id, { assetId: pick.id, side: 'buy', notional, now });
+                trades += 2;
+              } catch (e2) {
+                if (!(e2 instanceof TradeRejected)) throw e2;
+              }
+            }
+          }
         }
       }
     }
